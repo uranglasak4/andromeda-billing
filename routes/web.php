@@ -1,0 +1,38 @@
+<?php
+
+use App\Http\Controllers\AuthController;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\WaitingListController;
+use App\Http\Controllers\BillingController;
+
+// 1. Halaman Depan untuk Pelanggan (Public)
+Route::get('/', function () {
+    return view('customer.index'); // Tampilan "Dalam Proses Pengerjaan"
+})->middleware('guest');
+
+// 2. Route Login (Hanya bisa diakses jika BELUM login)
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+});
+
+// 3. Logout
+Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// 4. Group Route Admin
+Route::middleware(['auth'])->group(function () {
+    Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+});
+
+// 5. Group Route Owner
+Route::middleware(['auth', 'role:owner'])->prefix('owner')->group(function () {
+    Route::get('/dashboard', function () {
+        return view('owner.dashboardowner');
+    })->name('owner.dashboard');
+});
+
+Route::post('/admin/waiting-list', [WaitingListController::class, 'store'])->name('waiting-list.store');
+Route::post('/admin/billing/open/{id}', [BillingController::class, 'openTable'])->name('billing.open');
+Route::post('/admin/billing/move', [BillingController::class, 'moveTable'])->name('billing.move');
+Route::get('/admin/billing/stop/{id}', [BillingController::class, 'stopBilling'])->name('billing.stop');

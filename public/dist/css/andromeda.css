@@ -1,0 +1,58 @@
+/* --- 1. FORCE BACKGROUND PUTIH (LIGHT MODE) --- */
+/* Kita tembak semua elemen pembungkus agar tidak ada sisa abu-abu */
+[data-bs-theme='light'] body, 
+[data-bs-theme='light'] .page, 
+[data-bs-theme='light'] .page-wrapper,
+[data-bs-theme='light'] .page-body {
+    background-color: #ffffff !important;
+}
+
+/* --- 2. HILANGKAN BACKGROUND PADA BADGE STATUS --- */
+/* Agar tulisan AVAILABLE, PLAYING, dll tidak punya kotak warna sendiri */
+.card-table-admin .badge {
+    background: none !important;      /* Hapus background kotak */
+    border: none !important;          /* Hapus border kotak */
+    box-shadow: none !important;      /* Hapus bayangan jika ada */
+    padding: 0 !important;            /* Hilangkan padding agar teks rapat */
+    color: inherit !important;        /* Warna teks ikut warna kartu */
+    font-weight: 700;                 /* Tebalkan font agar jelas */
+    letter-spacing: 1px;              /* Beri jarak antar huruf agar elegan */
+}
+
+/* Khusus light mode available agar bordernya kelihatan */
+[data-bs-theme='light'] .bg-available .badge {
+    border: 1px solid rgba(0, 0, 0, 0.2) !important;
+}
+
+/* --- 3. WARNA STATUS MEJA (FULL CARD) --- */
+.card-table-admin {
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    border: none !important;
+}
+
+.card-table-admin .h1, .card-table-admin .small {
+    color: inherit !important;
+}
+
+/* --- WARNA STATUS --- */
+.bg-playing { background-color: #d63939 !important; color: #ffffff !important; }   
+.bg-nearly { background-color: #2fb344 !important; color: #ffffff !important; }    
+.bg-personal { background-color: #f59f00 !important; color: #000000 !important; }
+
+/* Available Mode */
+[data-bs-theme='light'] .bg-available { background-color: #eceef2 !important; color: #495057 !important; }
+[data-bs-theme='dark'] .bg-available { background-color: #2b3547 !important; color: #ffffff !important; }
+
+/* Maintenance Mode (Menyatu dengan background) */
+[data-bs-theme='light'] .bg-maintenance { 
+    background-color: #ffffff !important; 
+    color: #d63939 !important; 
+    border: 2px dashed #d63939 !important; 
+}
+[data-bs-theme='dark'] .bg-maintenance { 
+    background-color: #1d273b !important; 
+    color: #d63939 !important; 
+    border: 2px dashed #d63939 !important;
+}
+
