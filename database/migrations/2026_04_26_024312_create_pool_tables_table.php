@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->integer('table_number')->unique();
             $table->integer('relay_channel')->unique(); // Pin Relay 1-16
-            $table->enum('status', ['available', 'playing', 'nearly', 'personal', 'maintenance'])->default('available');
+            $table->enum('status', ['available', 'playing', 'nearly', 'personal', 'maintenance', 'timeout'])->default('available');
             $table->boolean('is_active')->default(true); // Permintaan dosen: bisa nambah meja
             $table->timestamps();
         });

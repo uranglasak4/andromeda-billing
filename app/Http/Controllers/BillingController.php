@@ -11,38 +11,43 @@ use App\Models\Package;
 class BillingController extends Controller
 {
     public function openTable(Request $request, $id)
-    {
-        $table = PoolTable::findOrFail($id);
-        
-        $duration = (int) $request->duration; 
-        
-        $startTime = now();
+{
+    $table = PoolTable::findOrFail($id);
+    $startTime = now();
+    $endTime = null;
+    $duration = null;
+    $billingType = 'personal';
+    $statusMeja = 'playing'; // Default merah
+
+    if ($request->duration === 'manual') {
+        $billingType = 'hourly';
+        $duration = $request->manual_hours * 60;
         $endTime = $startTime->copy()->addMinutes($duration);
-
-        // 1. Update status Meja
-        $table->update([
-            'status' => 'playing',
-        ]);
-
-        // 2. Tentukan Billing Type & Package ID (Logika Baru Tanpa Teks Cite)
-        $package = Package::where('duration_value', $duration)->first();
-        $billingType = $package ? 'package' : 'hourly';
-
-        // 3. Buat record Transaksi
-        Transaction::create([
-            'user_id' => auth()->id() ?? 1, 
-            'pool_table_id' => $table->id,
-            'customer_name' => $request->customer_name,
-            'billing_type' => $billingType,
-            'package_id' => $package ? $package->id : null,
-            'start_time' => $startTime,
-            'end_time' => $endTime,
-            'duration' => $duration,
-            'status' => 'running',
-        ]);
-
-        return back()->with('success', 'Meja ' . $table->table_number . ' dimulai!');
+    } elseif ($request->duration === 'personal') {
+        $billingType = 'personal';
+        $statusMeja = 'personal'; // Set status khusus agar warna kuning
+        $endTime = null;
+    } else {
+        $billingType = 'package';
+        $duration = (int) $request->duration;
+        $endTime = $startTime->copy()->addMinutes($duration);
     }
+
+    $table->update(['status' => $statusMeja]); // Update ke 'playing' atau 'personal'
+
+    Transaction::create([
+        'user_id' => auth()->id() ?? 1,
+        'pool_table_id' => $table->id,
+        'customer_name' => $request->customer_name,
+        'billing_type' => $billingType,
+        'start_time' => $startTime,
+        'end_time' => $endTime,
+        'duration' => $duration,
+        'status' => 'running',
+    ]);
+
+    return back()->with('success', 'Meja ' . $table->table_number . ' dimulai!');
+}
     public function moveTable(Request $request)
 {
     // Cari data meja asal dan tujuan[cite: 27]
@@ -57,7 +62,7 @@ class BillingController extends Controller
     if ($transaction) {
         // 1. Pindahkan status meja asal ke meja tujuan[cite: 27]
         $toTable->update(['status' => $fromTable->status]);
-        
+
         // 2. Kosongkan meja asal[cite: 27]
         $fromTable->update(['status' => 'available']);
 
