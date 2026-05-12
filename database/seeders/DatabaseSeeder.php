@@ -17,15 +17,15 @@ class DatabaseSeeder extends Seeder
         // Buat user untuk login admin dan owner
         User::create([
             'name' => 'Sajid',
-            'username' => 'owner',
+            'username' => 'sajid',
             'password' => Hash::make('sajid'),
-            'role' => 'owner',
+            'role' => 'master',
         ]);
 
         User::create([
-            'name' => 'Bolang',
-            'username' => 'bolang',
-            'password' => Hash::make('kasirkita'),
+            'name' => 'Unyil',
+            'username' => 'unyil',
+            'password' => Hash::make('admin'),
             'role' => 'admin',
         ]);
 
@@ -67,7 +67,7 @@ class DatabaseSeeder extends Seeder
             'active_from' => '11:00:00',
             'active_to' => '15:00:00',
             'duration_type' => 'minutes',
-            'duration_value' => '240', 
+            'duration_value' => '240',
         ]);
 
         // Vitgo: 50K (2 Jam + 2 Vit)

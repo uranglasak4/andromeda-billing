@@ -14,8 +14,8 @@ class AuthController extends Controller
     {
         // Fitur: Jika user sudah login, jangan kasih masuk ke halaman login lagi
         if (Auth::check()) {
-            if (Auth::user()->role == 'owner') {
-                return redirect()->route('owner.dashboard');
+            if (Auth::user()->role == 'master') {
+                return redirect()->route('master.dashboard');
             }
             return redirect()->route('admin.dashboard');
         }
@@ -39,8 +39,8 @@ class AuthController extends Controller
             $request->session()->regenerate();
 
             // Cek Role dan arahkan ke Dashboard yang sesuai
-            if (Auth::user()->role == 'owner') {
-                return redirect()->intended(route('owner.dashboard'));
+            if (Auth::user()->role == 'master') {
+                return redirect()->intended(route('master.dashboard'));
             }
 
             return redirect()->intended(route('admin.dashboard'));

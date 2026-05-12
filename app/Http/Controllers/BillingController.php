@@ -76,31 +76,49 @@ class BillingController extends Controller
 
     return back()->with('error', 'Transaksi tidak ditemukan.');
 }
+
 public function stopBilling($id)
 {
-    // 1. Cari Meja berdasarkan ID
     $table = PoolTable::findOrFail($id);
-
-    // 2. Cari Transaksi yang sedang berjalan di meja tersebut
+    // Cari transaksi yang statusnya 'running' atau 'active'
     $transaction = Transaction::where('pool_table_id', $table->id)
-                                ->where('status', 'running')
+                                ->whereIn('status', ['running', 'active'])
                                 ->first();
 
     if ($transaction) {
-        // 3. Update status transaksi menjadi finished
+        $startTime = \Carbon\Carbon::parse($transaction->start_time);
+        $endTime = now();
+
+        // HITUNG DURASI (Selisih menit)
+        $duration = $startTime->diffInMinutes($endTime);
+        if($duration <= 0) $duration = 1; // Minimal 1 menit agar tidak 0 rupiah
+
+        $totalPrice = 0;
+
+        // LOGIKA HITUNG HARGA
+        if ($transaction->billing_type == 'package') {
+            // Jika paket, ambil harga dari tabel packages
+            $totalPrice = $transaction->package->price ?? 0;
+        } else {
+            // Jika personal/reguler, kita hitung per menit
+            // Contoh: 30.000 per jam -> 500 per menit
+            $hargaPerMenit = 500;
+            $totalPrice = $duration * $hargaPerMenit;
+        }
+
+        // UPDATE DATABASE
         $transaction->update([
             'status' => 'finished',
-            'end_time' => now(), // Catat waktu selesai sebenarnya
+            'end_time' => $endTime,
+            'duration' => $duration,
+            'total_price' => $totalPrice, // Sekarang harganya tersimpan!
         ]);
 
-        // 4. Ubah status meja kembali ke available (Abu-abu)
-        $table->update([
-            'status' => 'available'
-        ]);
+        $table->update(['status' => 'available']);
 
-        return redirect()->route('admin.dashboard')->with('success', "Meja {$table->table_number} telah selesai.");
+        return redirect()->route('admin.dashboard')->with('success', "Meja {$table->table_number} Selesai. Total Bayar: Rp " . number_format($totalPrice, 0, ',', '.'));
     }
 
-    return back()->with('error', 'Tidak ada transaksi aktif di meja ini.');
+    return back()->with('error', 'Transaksi tidak ditemukan.');
 }
 }

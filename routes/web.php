@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\WaitingListController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\MasterController;
 
 // 1. Halaman Depan untuk Pelanggan (Public)
 Route::get('/', function () {
@@ -25,11 +26,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
 });
 
-// 5. Group Route Owner
-Route::middleware(['auth', 'role:owner'])->prefix('owner')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('owner.dashboardowner');
-    })->name('owner.dashboard');
+// 5. Group Route master
+// Cari bagian ini di web.php dan ubah
+Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () {
+    Route::get('/dashboard', [MasterController::class, 'index'])->name('master.dashboard');
 });
 
 Route::post('/admin/waiting-list', [WaitingListController::class, 'store'])->name('waiting-list.store');
