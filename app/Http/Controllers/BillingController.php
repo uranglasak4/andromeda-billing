@@ -80,7 +80,6 @@ class BillingController extends Controller
 public function stopBilling($id)
 {
     $table = PoolTable::findOrFail($id);
-    // Cari transaksi yang statusnya 'running' atau 'active'
     $transaction = Transaction::where('pool_table_id', $table->id)
                                 ->whereIn('status', ['running', 'active'])
                                 ->first();
@@ -89,36 +88,51 @@ public function stopBilling($id)
         $startTime = \Carbon\Carbon::parse($transaction->start_time);
         $endTime = now();
 
-        // HITUNG DURASI (Selisih menit)
         $duration = $startTime->diffInMinutes($endTime);
-        if($duration <= 0) $duration = 1; // Minimal 1 menit agar tidak 0 rupiah
+        if($duration <= 0) $duration = 1;
 
         $totalPrice = 0;
 
-        // LOGIKA HITUNG HARGA
+        // --- MULAI LOGIKA BARU ---
         if ($transaction->billing_type == 'package') {
-            // Jika paket, ambil harga dari tabel packages
             $totalPrice = $transaction->package->price ?? 0;
         } else {
-            // Jika personal/reguler, kita hitung per menit
-            // Contoh: 30.000 per jam -> 500 per menit
-            $hargaPerMenit = 500;
-            $totalPrice = $duration * $hargaPerMenit;
-        }
+            // 1. Ambil info hari dan jam sekarang
+            $now = now();
+            $dayOfWeek = $now->dayOfWeekIso; // 1 (Senin) - 7 (Minggu)
 
-        // UPDATE DATABASE
+            // 2. Cari rule yang sesuai dengan hari dan rentang jam saat ini
+            // Pastikan di database, active_days berisi string seperti "1,2,3,4"
+            $rule = \App\Models\PricingRule::where('active_days', 'like', "%$dayOfWeek%")
+                ->whereTime('start_time', '<=', $now->format('H:i:s'))
+                ->whereTime('end_time', '>=', $now->format('H:i:s'))
+                ->first();
+
+            // Gunakan harga dari database, jika tidak ketemu pakai default (27k)
+            $pricePerHour = $rule ? $rule->price_per_hour : 27000;
+            $minCharge = $rule ? $rule->min_charge : 10000;
+
+            $calculatedPrice = ($duration / 60) * $pricePerHour;
+
+            // 3. Terapkan Aturan Minimum Charge (Andromeda Rule)
+            $totalPrice = ($calculatedPrice < $minCharge) ? $minCharge : $calculatedPrice;
+        }
+        // --- SELESAI LOGIKA BARU ---
+
         $transaction->update([
             'status' => 'finished',
             'end_time' => $endTime,
             'duration' => $duration,
-            'total_price' => $totalPrice, // Sekarang harganya tersimpan!
+            'total_price' => $totalPrice,
         ]);
 
         $table->update(['status' => 'available']);
 
-        return redirect()->route('admin.dashboard')->with('success', "Meja {$table->table_number} Selesai. Total Bayar: Rp " . number_format($totalPrice, 0, ',', '.'));
+        return redirect()->route('admin.dashboard')->with('success', "Meja {$table->table_number} Selesai. Total: Rp " . number_format($totalPrice, 0, ',', '.'));
     }
 
     return back()->with('error', 'Transaksi tidak ditemukan.');
 }
+
+
 }

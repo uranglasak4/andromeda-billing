@@ -30,6 +30,13 @@ Route::middleware(['auth'])->group(function () {
 // Cari bagian ini di web.php dan ubah
 Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () {
     Route::get('/dashboard', [MasterController::class, 'index'])->name('master.dashboard');
+    Route::get('/pricing', [MasterController::class, 'pricingIndex'])->name('master.pricing');
+    Route::post('/pricing/update/{id}', [MasterController::class, 'pricingUpdate'])->name('master.pricing.update');
+    Route::get('/fnb', [MasterController::class, 'fnbIndex'])->name('master.fnb');
+Route::post('/fnb/category', [MasterController::class, 'storeCategory'])->name('master.fnb.category.store');
+Route::post('/fnb/product', [MasterController::class, 'storeProduct'])->name('master.fnb.product.store');
+Route::delete('/fnb/category/{id}', [MasterController::class, 'destroyCategory'])->name('master.fnb.category.destroy');
+Route::post('/fnb/product/update/{id}', [MasterController::class, 'updateProduct'])->name('master.fnb.product.update');
 });
 
 Route::post('/admin/waiting-list', [WaitingListController::class, 'store'])->name('waiting-list.store');

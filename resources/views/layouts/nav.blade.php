@@ -88,17 +88,6 @@
                                     @if (auth()->user()->role == 'master')
                                         <li class="nav-item {{ Request::is('master/dashboard') ? 'active' : '' }}">
                                             <a class="nav-link" href="{{ route('master.dashboard') }}">
-                                                <span class="nav-link-icon d-md-none d-lg-inline-block">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon"
-                                                        width="24" height="24" viewBox="0 0 24 24"
-                                                        stroke-width="2" stroke="currentColor" fill="none"
-                                                        stroke-linecap="round" stroke-linejoin="round">
-                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                        <path d="M12 13m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-                                                        <path d="M13.45 11.55l2.05 -2.05" />
-                                                        <path d="M6.4 20a9 9 0 1 1 11.2 0z" />
-                                                    </svg>
-                                                </span>
                                                 <span class="nav-link-title">Dashboard Master</span>
                                             </a>
                                         </li>
@@ -112,9 +101,24 @@
                                                 <span class="nav-link-title">Waiting List</span>
                                             </a>
                                         </li>
+                                        <li class="nav-item {{ Request::is('master/pricing') ? 'active' : '' }}">
+        <a class="nav-link" href="{{ route('master.pricing') }}">
+            <span class="nav-link-title">Manajemen Harga</span>
+        </a>
+    </li>
+                                        <li class="nav-item {{ Request::is('master/fnb') ? 'active' : '' }}">
+    <a class="nav-link" href="{{ route('master.fnb') }}">
+        <span class="nav-link-title">FnB</span>
+    </a>
+</li>
                                         <li class="nav-item">
                                             <a class="nav-link" href="#">
                                                 <span class="nav-link-title">Laporan Keuangan</span>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="#">
+                                                <span class="nav-link-title">Manajemen Akun</span>
                                             </a>
                                         </li>
 

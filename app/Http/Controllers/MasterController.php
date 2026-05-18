@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\PoolTable;
-use App\Models\Transaction; // <--- Ganti dari Billing ke Transaction
+use App\Models\Transaction;
+use App\Models\PricingRule;
 use Illuminate\Http\Request;
+use App\Models\FnbCategory;
+use App\Models\FnbProduct;
 
 class MasterController extends Controller
 {
@@ -31,5 +34,95 @@ public function index()
     $waitingLists = \App\Models\WaitingList::where('status', 'waiting')->get();
 
     return view('master.dashboardmaster', compact('tables', 'omzetHariIni', 'mejaTerisi', 'waitingLists'));
+}
+
+public function pricingIndex()
+{
+    $rules = PricingRule::all();
+    return view('master.pricing', compact('rules'));
+}
+
+public function pricingUpdate(Request $request, $id)
+{
+    $rule = PricingRule::findOrFail($id);
+
+    // Ambil data hari, jika kosong kasih string kosong
+    $daysArray = $request->input('active_days', []);
+    $activeDaysString = implode(',', $daysArray);
+
+    $rule->update([
+        'price_per_hour' => $request->price_per_hour,
+        'min_charge'     => $request->min_charge,
+        'start_time'     => $request->start_time,
+        'end_time'       => $request->end_time,
+        'active_days'    => $activeDaysString, // Simpan hasil gabungan "1,2,3,4"
+    ]);
+
+    return back()->with('success', 'Data berhasil diperbarui!');
+}
+
+public function fnbIndex(Request $request)
+{
+    $search = $request->input('search');
+    $categoryFilter = $request->input('category_id');
+
+    // Ambil produk dengan filter search & kategori + Pagination 10
+    $products = FnbProduct::with('category')
+        ->when($search, function($query) use ($search) {
+            $query->where('name', 'like', '%' . $search . '%');
+        })
+        ->when($categoryFilter, function($query) use ($categoryFilter) {
+            $query->where('fnb_category_id', $categoryFilter);
+        })
+        ->paginate(15, ['*'], 'products_page');
+
+    // Ambil kategori dengan Pagination 5
+    $categories = FnbCategory::paginate(5, ['*'], 'categories_page');
+
+    // Semua kategori untuk dropdown filter & input produk
+    $allCategories = FnbCategory::all();
+
+    return view('master.fnb', compact('products', 'categories', 'allCategories'));
+}
+
+public function storeCategory(Request $request)
+{
+    $request->validate(['name' => 'required']);
+    FnbCategory::create($request->all());
+    return back()->with('success', 'Kategori berhasil ditambahkan!');
+}
+
+public function storeProduct(Request $request)
+{
+    $request->validate([
+        'fnb_category_id' => 'required',
+        'name' => 'required',
+        'price' => 'required|numeric',
+        'stock' => 'required|numeric'
+    ]);
+
+    FnbProduct::create($request->all());
+    return back()->with('success', 'Produk berhasil ditambahkan!');
+}
+
+public function destroyCategory($id)
+{
+    FnbCategory::findOrFail($id)->delete();
+    return back()->with('success', 'Kategori dan produk di dalamnya berhasil dihapus!');
+}
+
+public function updateProduct(Request $request, $id)
+{
+    $request->validate([
+        'fnb_category_id' => 'required',
+        'name' => 'required',
+        'price' => 'required|numeric',
+        'stock' => 'required|numeric'
+    ]);
+
+    $product = FnbProduct::findOrFail($id);
+    $product->update($request->all());
+
+    return back()->with('success', 'Produk berhasil diperbarui!');
 }
 }
