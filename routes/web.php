@@ -37,6 +37,15 @@ Route::post('/fnb/category', [MasterController::class, 'storeCategory'])->name('
 Route::post('/fnb/product', [MasterController::class, 'storeProduct'])->name('master.fnb.product.store');
 Route::delete('/fnb/category/{id}', [MasterController::class, 'destroyCategory'])->name('master.fnb.category.destroy');
 Route::post('/fnb/product/update/{id}', [MasterController::class, 'updateProduct'])->name('master.fnb.product.update');
+
+// Tambahkan ini di dalam group middleware master di web.php
+Route::post('/packages/store', [MasterController::class, 'packageStore'])->name('master.package.store');
+Route::post('/packages/update/{id}', [MasterController::class, 'packageUpdate'])->name('master.package.update');
+Route::delete('/packages/destroy/{id}', [MasterController::class, 'packageDestroy'])->name('master.package.destroy');
+
+Route::get('/tables', [MasterController::class, 'tableIndex'])->name('master.tables');
+Route::post('/tables/maintenance/{id}', [MasterController::class, 'toggleMaintenance'])->name('master.tables.maintenance');
+
 });
 
 Route::post('/admin/waiting-list', [WaitingListController::class, 'store'])->name('waiting-list.store');

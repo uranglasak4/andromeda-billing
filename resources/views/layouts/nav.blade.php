@@ -91,8 +91,8 @@
                                                 <span class="nav-link-title">Dashboard Master</span>
                                             </a>
                                         </li>
-                                        <li class="nav-item">
-                                            <a class="nav-link" href="#">
+                                        <li class="nav-item {{ Request::is('master/tables') ? 'active' : '' }}">
+        <a class="nav-link" href="{{ route('master.tables') }}">
                                                 <span class="nav-link-title">Manajemen Meja</span>
                                             </a>
                                         </li>

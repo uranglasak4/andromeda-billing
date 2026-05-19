@@ -8,6 +8,7 @@ use App\Models\PricingRule;
 use Illuminate\Http\Request;
 use App\Models\FnbCategory;
 use App\Models\FnbProduct;
+use App\Models\Package;
 
 class MasterController extends Controller
 {
@@ -39,7 +40,8 @@ public function index()
 public function pricingIndex()
 {
     $rules = PricingRule::all();
-    return view('master.pricing', compact('rules'));
+    $packages = Package::all();
+    return view('master.pricing', compact('rules', 'packages'));
 }
 
 public function pricingUpdate(Request $request, $id)
@@ -124,5 +126,75 @@ public function updateProduct(Request $request, $id)
     $product->update($request->all());
 
     return back()->with('success', 'Produk berhasil diperbarui!');
+}
+
+public function packageStore(Request $request)
+    {
+        $request->validate([
+            'name' => 'required',
+            'price' => 'required|numeric',
+            'day_type' => 'required|in:weekday,weekend,both',
+            'active_from' => 'required',
+            'active_to' => 'required',
+            'duration_type' => 'required|in:minutes,fixed_end_time',
+            'duration_value' => 'required'
+        ]);
+
+        \App\Models\Package::create($request->all());
+
+        return back()->with('success', 'Paket promo berhasil ditambahkan!');
+    }
+
+    public function packageUpdate(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required',
+            'price' => 'required|numeric',
+            'day_type' => 'required|in:weekday,weekend,both',
+            'active_from' => 'required',
+            'active_to' => 'required',
+            'duration_type' => 'required|in:minutes,fixed_end_time',
+            'duration_value' => 'required'
+        ]);
+
+        $package = \App\Models\Package::findOrFail($id);
+        $package->update($request->all());
+
+        return back()->with('success', 'Paket promo berhasil diperbarui!');
+    }
+
+    public function packageDestroy($id)
+    {
+        \App\Models\Package::findOrFail($id)->delete();
+
+        return back()->with('success', 'Paket promo berhasil dihapus!');
+    }
+
+    public function tableIndex()
+{
+    $tables = PoolTable::all();
+    return view('master.tables', compact('tables'));
+}
+
+public function toggleMaintenance($id)
+{
+    $table = PoolTable::findOrFail($id);
+
+    // KUNCI KEAMANAN: Hanya boleh ubah jika status 'available' atau 'maintenance'
+    if (!in_array($table->status, ['available', 'maintenance'])) {
+        return back()->with('error', 'Meja sedang digunakan transaksi! Status tidak bisa diubah ke maintenance.');
+    }
+
+    // Toggle statusnya
+    if ($table->status === 'available') {
+        $table->status = 'maintenance';
+        $pesan = 'Meja berhasil di-set ke MAINTENANCE.';
+    } else {
+        $table->status = 'available';
+        $pesan = 'Meja berhasil dikembalikan ke AVAILABLE.';
+    }
+
+    $table->save();
+    return back()->with('success', $pesan);
 }
 }
