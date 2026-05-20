@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\WaitingListController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\MasterController;
+use App\Http\Controllers\UserController;
 
 // 1. Halaman Depan untuk Pelanggan (Public)
 Route::get('/', function () {
@@ -37,8 +38,9 @@ Route::post('/fnb/category', [MasterController::class, 'storeCategory'])->name('
 Route::post('/fnb/product', [MasterController::class, 'storeProduct'])->name('master.fnb.product.store');
 Route::delete('/fnb/category/{id}', [MasterController::class, 'destroyCategory'])->name('master.fnb.category.destroy');
 Route::post('/fnb/product/update/{id}', [MasterController::class, 'updateProduct'])->name('master.fnb.product.update');
+Route::delete('/fnb/product/delete/{id}', [MasterController::class, 'destroyProduct'])->name('master.fnb.product.destroy');
 
-// Tambahkan ini di dalam group middleware master di web.php
+
 Route::post('/packages/store', [MasterController::class, 'packageStore'])->name('master.package.store');
 Route::post('/packages/update/{id}', [MasterController::class, 'packageUpdate'])->name('master.package.update');
 Route::delete('/packages/destroy/{id}', [MasterController::class, 'packageDestroy'])->name('master.package.destroy');
@@ -46,6 +48,10 @@ Route::delete('/packages/destroy/{id}', [MasterController::class, 'packageDestro
 Route::get('/tables', [MasterController::class, 'tableIndex'])->name('master.tables');
 Route::post('/tables/maintenance/{id}', [MasterController::class, 'toggleMaintenance'])->name('master.tables.maintenance');
 
+Route::get('/users', [UserController::class, 'index'])->name('master.users');
+    Route::post('/users/store', [UserController::class, 'store'])->name('master.users.store');
+    Route::post('/users/update/{id}', [UserController::class, 'update'])->name('master.users.update');
+    Route::delete('/users/delete/{id}', [UserController::class, 'destroy'])->name('master.users.destroy');
 });
 
 Route::post('/admin/waiting-list', [WaitingListController::class, 'store'])->name('waiting-list.store');

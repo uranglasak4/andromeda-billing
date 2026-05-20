@@ -128,7 +128,7 @@
         <div class="card">
             <div class="card-header justify-content-between">
                 <h3 class="card-title">Daftar Paket Promo (Packages)</h3>
-                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modal-add-package">+ Tambah Paket</button>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-add-package">+ Tambah Paket</button>
             </div>
             <div class="table-responsive">
                 <table class="table table-vcenter card-table text-nowrap">
@@ -250,7 +250,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-link link-secondary me-auto" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-success">Simpan Paket</button>
+                <button type="submit" class="btn btn-primary">Simpan Paket</button>
             </div>
         </form>
     </div>
