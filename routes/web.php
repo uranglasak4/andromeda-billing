@@ -7,6 +7,8 @@ use App\Http\Controllers\WaitingListController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\MasterController;
 use App\Http\Controllers\UserController;
+use App\Models\PoolTable;
+use App\Models\Transaction;
 
 // 1. Halaman Depan untuk Pelanggan (Public)
 Route::get('/', function () {
@@ -25,6 +27,7 @@ Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 // 4. Group Route Admin
 Route::middleware(['auth'])->group(function () {
     Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+    Route::get('/api/tables/status', [AdminController::class, 'getTablesStatus'])->name('api.tables.status');
 });
 
 // 5. Group Route master
@@ -58,3 +61,61 @@ Route::post('/admin/waiting-list', [WaitingListController::class, 'store'])->nam
 Route::post('/admin/billing/open/{id}', [BillingController::class, 'openTable'])->name('billing.open');
 Route::post('/admin/billing/move', [BillingController::class, 'moveTable'])->name('billing.move');
 Route::get('/admin/billing/stop/{id}', [BillingController::class, 'stopBilling'])->name('billing.stop');
+
+
+
+// Rute khusus untuk dibaca oleh Python di komputer kasir toko
+Route::get('/status-lampu-iot', function() {
+    try {
+        $now = now(); // Ambil waktu server saat ini
+
+        // Ambil semua data meja langsung dari database
+        $tables = \App\Models\PoolTable::orderBy('table_number', 'asc')->get();
+        $statusLampu = [];
+
+        foreach ($tables as $table) {
+
+            // JIKA meja sedang bermain ('playing'), kita cek waktu aslinya di database
+            if ($table->status === 'playing') {
+                // Cari transaksi aktif (running) untuk meja ini
+                $activeTransaction = \App\Models\Transaction::where('pool_table_id', $table->id)
+                                        ->where('status', 'running')
+                                        ->first();
+
+                // Jika transaksi memiliki batas waktu (hourly/package) dan waktunya SUDAH HABIS
+                if ($activeTransaction && $activeTransaction->end_time) {
+                    $endTime = \Carbon\Carbon::parse($activeTransaction->end_time);
+
+                    if ($now->greaterThanOrEqualTo($endTime)) {
+                        // 1. Update status meja menjadi 'timeout' secara permanen di database!
+                        $table->status = 'timeout';
+                        $table->save();
+                    }
+                }
+            }
+
+            // SINKRONISASI TRANSMISI KE PYTHON (6 Status Meja Biliar)
+            switch ($table->status) {
+                case 'playing':     // Lampu ON
+                case 'nearly':      // Lampu ON
+                case 'personal':    // Lampu ON
+                    $statusLampu[$table->table_number] = 'ON';
+                    break;
+
+                case 'available':   // Lampu OFF
+                case 'timeout':     // Lampu OFF (Skenario Waktu Habis Anda)
+                case 'maintenance': // Lampu OFF
+                default:
+                    $statusLampu[$table->table_number] = 'OFF';
+                    break;
+            }
+        }
+
+        // Kembalikan response JSON valid untuk dibaca Python
+        return response()->json($statusLampu);
+
+    } catch (\Exception $e) {
+        // Cegah Python crash jika ada error tak terduga di Laravel
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});

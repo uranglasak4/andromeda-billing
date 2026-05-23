@@ -152,9 +152,112 @@
         </div>
     </div>
 
+    <!-- Modal Open Table -->
+    <div class="modal modal-blur fade" id="modal-open-table" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form id="form-open-table" method="POST">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="modal-title h3">Open Table Meja <span id="display-no-meja"></span></div>
+                        <div class="mb-3">
+                            <label class="form-label">Nama Customer</label>
+                            <input type="text" name="customer_name" class="form-control" placeholder="Nama..." required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Pilih Billing</label>
+                            <select id="billing-selector" name="duration" class="form-select"
+                                onchange="handleBillingSelection()" required>
+                                <option value="" disabled selected>-- Pilih Durasi/Paket --</option>
+                                <optgroup label="Custom">
+                                    <option value="manual" data-type="manual">Per Jam (Input Manual)</option>
+                                    <option value="personal" data-type="personal">Personal (Open Time)</option>
+                                </optgroup>
+                                <optgroup label="Paket Promo">
+                                    @foreach ($packages as $package)
+                                        <option value="{{ $package->duration_value }}" data-type="package"
+                                            data-price="{{ $package->price }}">
+                                            {{ $package->name }}
+                                        </option>
+                                    @endforeach
+                                </optgroup>
+                            </select>
+                        </div>
 
+                        <!-- Input tambahan yang hanya muncul jika pilih "Per Jam (Manual)" -->
+                        <div id="manual-duration-container" class="mb-3 d-none">
+                            <label class="form-label">Masukkan Durasi (Jam)</label>
+                            <div class="input-group">
+                                <input type="number" id="input-hours" name="manual_hours" class="form-control"
+                                    value="1" min="1" oninput="calculatePrice()">
+                                <span class="input-group-text">Jam</span>
+                            </div>
+                        </div>
 
-    <script>
+                        <div class="card bg-primary-lt p-3 text-center">
+                            <div class="text-uppercase small fw-bold">Estimasi Harga</div>
+                            <div class="h2 m-0 font-weight-bold">Rp <span id="display-harga">0</span></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary w-100">Mulai Billing</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Option (Untuk Pindah/Stop Meja) -->
+    <div class="modal modal-blur fade" id="modal-option-table" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="modal-title h3 text-center">Opsi Meja <span id="option-no-meja"></span></div>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <button class="btn btn-info w-100 py-3" onclick="showMoveModal()">
+                                <i class="ti ti-arrows-exchange me-2"></i> Pindah Meja
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-danger w-100 py-3" onclick="stopBilling()">
+                                <i class="ti ti-player-stop me-2"></i> Selesaikan Billing
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pindah Meja -->
+    <div class="modal modal-blur fade" id="modal-move-table" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form id="form-move-table" action="{{ route('billing.move') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="from_table_id" id="from-table-id">
+                    <div class="modal-body">
+                        <div class="modal-title h3 text-center">Pindah Meja</div>
+                        <div class="mb-3">
+                            <label class="form-label">Pilih Meja Tujuan</label>
+                            <select name="to_table_id" class="form-select" required>
+                                <option value="" disabled selected>-- Pilih Meja Kosong --</option>
+                                @foreach ($tables->where('status', 'available') as $t)
+                                    <option value="{{ $t->id }}">Meja {{ $t->table_number }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary w-100">Konfirmasi Pindah</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+<script>
         // Logic Realtime Timer
         // Simpan status meja sebelumnya di memori untuk deteksi perubahan
         let previousStatuses = {};
@@ -356,113 +459,7 @@
             @endif
         });
     </script>
-    <!-- Modal Open Table -->
-    <div class="modal modal-blur fade" id="modal-open-table" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <form id="form-open-table" method="POST">
-                    @csrf
-                    <div class="modal-body">
-                        <div class="modal-title h3">Open Table Meja <span id="display-no-meja"></span></div>
-                        <div class="mb-3">
-                            <label class="form-label">Nama Customer</label>
-                            <input type="text" name="customer_name" class="form-control" placeholder="Nama..." required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Pilih Billing</label>
-                            <select id="billing-selector" name="duration" class="form-select"
-                                onchange="handleBillingSelection()" required>
-                                <option value="" disabled selected>-- Pilih Durasi/Paket --</option>
-                                <optgroup label="Custom">
-                                    <option value="manual" data-type="manual">Per Jam (Input Manual)</option>
-                                    <option value="personal" data-type="personal">Personal (Open Time)</option>
-                                </optgroup>
-                                <optgroup label="Paket Promo">
-                                    @foreach ($packages as $package)
-                                        <option value="{{ $package->duration_value }}" data-type="package"
-                                            data-price="{{ $package->price }}">
-                                            {{ $package->name }}
-                                        </option>
-                                    @endforeach
-                                </optgroup>
-                            </select>
-                        </div>
-
-                        <!-- Input tambahan yang hanya muncul jika pilih "Per Jam (Manual)" -->
-                        <div id="manual-duration-container" class="mb-3 d-none">
-                            <label class="form-label">Masukkan Durasi (Jam)</label>
-                            <div class="input-group">
-                                <input type="number" id="input-hours" name="manual_hours" class="form-control"
-                                    value="1" min="1" oninput="calculatePrice()">
-                                <span class="input-group-text">Jam</span>
-                            </div>
-                        </div>
-
-                        <div class="card bg-primary-lt p-3 text-center">
-                            <div class="text-uppercase small fw-bold">Estimasi Harga</div>
-                            <div class="h2 m-0 font-weight-bold">Rp <span id="display-harga">0</span></div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary w-100">Mulai Billing</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Option (Untuk Pindah/Stop Meja) -->
-    <div class="modal modal-blur fade" id="modal-option-table" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <div class="modal-body">
-                    <div class="modal-title h3 text-center">Opsi Meja <span id="option-no-meja"></span></div>
-                    <div class="row g-2">
-                        <div class="col-12">
-                            <button class="btn btn-info w-100 py-3" onclick="showMoveModal()">
-                                <i class="ti ti-arrows-exchange me-2"></i> Pindah Meja
-                            </button>
-                        </div>
-                        <div class="col-12">
-                            <button class="btn btn-danger w-100 py-3" onclick="stopBilling()">
-                                <i class="ti ti-player-stop me-2"></i> Selesaikan Billing
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Pindah Meja -->
-    <div class="modal modal-blur fade" id="modal-move-table" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <form id="form-move-table" action="{{ route('billing.move') }}" method="POST">
-                    @csrf
-                    <input type="hidden" name="from_table_id" id="from-table-id">
-                    <div class="modal-body">
-                        <div class="modal-title h3 text-center">Pindah Meja</div>
-                        <div class="mb-3">
-                            <label class="form-label">Pilih Meja Tujuan</label>
-                            <select name="to_table_id" class="form-select" required>
-                                <option value="" disabled selected>-- Pilih Meja Kosong --</option>
-                                @foreach ($tables->where('status', 'available') as $t)
-                                    <option value="{{ $t->id }}">Meja {{ $t->table_number }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary w-100">Konfirmasi Pindah</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 
     <!-- sound -->
-    <audio id="snd-billing" src="{{ asset('sound/billing.wav') }}" preload="auto"></audio>
-    <audio id="snd-finished" src="{{ asset('sound/finished.wav') }}" preload="auto"></audio>
-    <audio id="snd-timeout" src="{{ asset('sound/timeout.wav') }}" preload="auto"></audio>
+
 @endsection

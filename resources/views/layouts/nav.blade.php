@@ -164,30 +164,7 @@
         </div>
     </div>
 
-    <script src="{{ asset('dist/js/tabler.min.js') }}"></script>
-
-    <script>
-        function confirmLogout(event) {
-            event.preventDefault();
-
-            Swal.fire({
-                title: 'Apakah kamu yakin?',
-                text: "Sesi kerja kamu di Andromeda Billiard akan diakhiri!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, Keluar!',
-                cancelButtonText: 'Batal',
-                background: document.body.classList.contains('theme-dark') ? '#1e293b' : '#fff',
-                color: document.body.classList.contains('theme-dark') ? '#fff' : '#000'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = "{{ route('logout') }}";
-                }
-            });
-        }
-    </script>
+@include('layouts.scripts')
 </body>
 
 </html>
