@@ -15,13 +15,19 @@ class RoleMiddleware
      */
     public function handle(Request $request, Closure $next, $role)
     {
+        // 1. Jika belum login, tendang ke halaman login
         if (! auth()->check()) {
-            return redirect('/')->with('error', 'Silakan login terlebih dahulu.');
+            return redirect('/login')->with('error', 'Silakan login terlebih dahulu.');
         }
 
+        // 2. JIKA SALING SILANG AKSES (User mengakses rute yang bukan hak role-nya)
         if (auth()->user()->role !== $role) {
-            // Jika admin coba masuk ke owner, atau sebaliknya
-            return abort(403, 'Anda tidak punya akses ke halaman ini.');
+            // Kita cek role aslinya dia apa, lalu redirect paksa ke dashboard yang sesuai!
+            if (auth()->user()->role === 'master') {
+                return redirect()->route('master.dashboard');
+            } elseif (auth()->user()->role === 'admin') {
+                return redirect()->route('admin.dashboard');
+            }
         }
 
         return $next($request);

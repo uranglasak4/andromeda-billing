@@ -34,24 +34,35 @@ class AdminController extends Controller
     }
 
 public function getTablesStatus() {
-        $now = now();
-        $tables = PoolTable::with(['transactions' => function($query) {
-            $query->where('status', 'running');
-        }])->get();
+    $now = now();
 
-        // Koreksi status di latar belakang saat dashboard melakukan polling data
-        foreach ($tables as $table) {
-            if ($table->status === 'playing') {
-                $activeTx = $table->transactions->first();
-                if ($activeTx && $activeTx->end_time) {
-                    if ($now->greaterThanOrEqualTo(Carbon::parse($activeTx->end_time))) {
-                        $table->status = 'timeout';
-                        $table->save();
-                    }
+    // 1. Ambil semua data 14 meja biliar beserta transaksi aktifnya
+    $tables = PoolTable::with(['transactions' => function($query) {
+        $query->where('status', 'running');
+    }])->orderBy('table_number', 'asc')->get();
+
+    // Koreksi status otomatis di latar belakang saat dashboard/monitor melakukan polling
+    foreach ($tables as $table) {
+        if ($table->status === 'playing') {
+            $activeTx = $table->transactions->first();
+            if ($activeTx && $activeTx->end_time) {
+                if ($now->greaterThanOrEqualTo(\Carbon\Carbon::parse($activeTx->end_time))) {
+                    $table->status = 'timeout';
+                    $table->save();
                 }
             }
         }
-
-        return response()->json($tables);
     }
+
+    // 2. AMBIL DATA WAITING LIST YANG AKTIF (Statusnya 'waiting')
+    $waitingList = WaitingList::where('status', 'waiting')
+                                ->orderBy('created_at', 'asc')
+                                ->get();
+
+    // 3. BUNGKUS KEDUANYA MENJADI SATU KESATUAN JSON RESPONSE
+    return response()->json([
+        'tables' => $tables,
+        'waiting_list' => $waitingList
+    ]);
+}
 }

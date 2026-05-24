@@ -13,7 +13,7 @@
                             </button>
                         </div>
                         <div class="card-body">
-                            <form action="{{ route('waiting-list.store') }}" method="POST">
+                            <form action="{{ route('admin.waiting-list.store') }}" method="POST">
                                 @csrf
                                 <div class="row g-2">
                                     <div class="col">

@@ -13,13 +13,13 @@
     function confirmLogout(event) {
         event.preventDefault();
         Swal.fire({
-            title: 'Apakah kamu yakin?',
-            text: "Sesi kerja kamu di Andromeda Billiard akan diakhiri!",
+            title: 'Apakah kamu yakin ingin Logout?',
+            text: "sesi kamu akan berakhir dan kamu harus login kembali untuk mengakses dashboard.",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#3085d6',
             cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, Keluar!',
+            confirmButtonText: 'Ya, Logout',
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
