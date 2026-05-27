@@ -117,18 +117,24 @@ public function stopBilling($id)
             // 3. Terapkan Aturan Minimum Charge (Andromeda Rule)
             $totalPrice = ($calculatedPrice < $minCharge) ? $minCharge : $calculatedPrice;
         }
-        // --- SELESAI LOGIKA BARU ---
+// --- INTEGRASI FNB TIPE 1 ---
+    // Hitung semua item FnB milik transaksi ini yang statusnya masih 'unpaid'
+    $totalFnb = $transaction->orderFnbs()->where('payment_status', 'unpaid')->sum('subtotal');
+    $grandTotal = $totalPrice + $totalFnb;
+
+    // Set status order FnB di meja ini menjadi paid (Lunas) karena dibayar saat checkout meja
+    $transaction->orderFnbs()->where('payment_status', 'unpaid')->update(['payment_status' => 'paid']);
 
         $transaction->update([
             'status' => 'finished',
             'end_time' => $endTime,
             'duration' => $duration,
-            'total_price' => $totalPrice,
+            'total_price' => $grandTotal,
         ]);
 
-        $table->update(['status' => 'available']);
+$table->update(['status' => 'available']);
 
-        return redirect()->route('admin.dashboard')->with('success', "Meja {$table->table_number} Selesai. Total: Rp " . number_format($totalPrice, 0, ',', '.'));
+    return redirect()->route('admin.dashboard')->with('success', "Meja {$table->table_number} Selesai. Total Bayar (Meja + FnB): Rp " . number_format($grandTotal, 0, ',', '.'));
     }
 
     return back()->with('error', 'Transaksi tidak ditemukan.');

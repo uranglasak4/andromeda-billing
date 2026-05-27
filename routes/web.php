@@ -7,8 +7,10 @@ use App\Http\Controllers\WaitingListController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\MasterController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\OrderFnbController;
 use App\Models\PoolTable;
 use App\Models\Transaction;
+use App\Models\OrderFnb;
 use Illuminate\Support\Facades\Auth;
 
 // =========================================================================
@@ -53,6 +55,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('/admin/billing/open/{id}', [BillingController::class, 'openTable'])->name('billing.open');
     Route::post('/admin/billing/move', [BillingController::class, 'moveTable'])->name('billing.move');
     Route::get('/admin/billing/stop/{id}', [BillingController::class, 'stopBilling'])->name('billing.stop');
+
+Route::get('/orderfnb', [OrderFnbController::class, 'index'])->name('admin.orderfnb');
+Route::post('/orderfnb', [OrderFnbController::class, 'store'])->name('admin.orderfnb.store');
 });
 
 

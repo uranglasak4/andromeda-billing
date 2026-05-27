@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,6 +21,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Paginator::useBootstrapFive();
+        // Paginator tetap biarkan jika ada
+        if (class_exists(\Illuminate\Pagination\Paginator::class)) {
+            \Illuminate\Pagination\Paginator::useBootstrapFive();
+        }
+
+        // PERBAIKAN: Menggunakan getHost() untuk mendeteksi domain Ngrok
+        if (str_contains(request()->getHost(), 'ngrok-free') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')) {
+            URL::forceScheme('https');
+        }
     }
 }

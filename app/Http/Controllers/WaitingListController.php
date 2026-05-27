@@ -11,7 +11,7 @@ class WaitingListController extends Controller
     {
         // Validasi input nama dan nomor whatsapp dari form customer
         $request->validate([
-            'nama_pelanggan' => 'required|string|max:255',
+            'nama_pelanggan' => 'required|string|max:25',
             'nomor_wa'       => 'required|numeric',
         ]);
 

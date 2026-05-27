@@ -10,8 +10,8 @@ class Transaction extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'pool_table_id', 'customer_name', 'billing_type', 
-        'pricing_rule_id', 'package_id', 'start_time', 'end_time', 
+        'user_id', 'pool_table_id', 'customer_name', 'billing_type',
+        'pricing_rule_id', 'package_id', 'start_time', 'end_time',
         'duration', 'total_price', 'status'
     ];
 
@@ -29,5 +29,9 @@ class Transaction extends Model
 
     public function pricingRule() {
         return $this->belongsTo(PricingRule::class);
+    }
+
+    public function orderFnbs() {
+    return $this->hasMany(OrderFnb::class, 'transaction_id');
     }
 }
