@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\Models\FnbCategory;
 use App\Models\FnbProduct;
 use App\Models\Package;
+use App\Models\Setting;
 
 
 class MasterController extends Controller
@@ -167,4 +168,28 @@ class MasterController extends Controller
         $table->save();
         return back()->with('success', $pesan);
     }
+
+    public function waitingListSetting()
+{
+    // Ambil nilai yang ada di database saat ini
+    $verificationTime = Setting::where('key', 'verification_time')->value('value') ?? 20;
+    $maxOnlineQueue = Setting::where('key', 'max_online_queue')->value('value') ?? 15;
+
+    return view('master.wlsetting', compact('verificationTime', 'maxOnlineQueue'));
+}
+
+// Fungsi menyimpan/mengupdate konfigurasi dari form Master
+public function updateWaitingListSetting(Request $request)
+{
+    $request->validate([
+        'verification_time' => 'required|integer|min:1',
+        'max_online_queue'  => 'required|integer|min:1',
+    ]);
+
+    // Update atau Buat jika key belum ada di tabel settings
+    Setting::updateOrCreate(['key' => 'verification_time'], ['value' => $request->verification_time]);
+    Setting::updateOrCreate(['key' => 'max_online_queue'], ['value' => $request->max_online_queue]);
+
+    return redirect()->back()->with('success', 'Konfigurasi Waiting List berhasil diperbarui oleh Master!');
+}
 }

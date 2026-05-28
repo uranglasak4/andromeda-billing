@@ -257,6 +257,83 @@
         </div>
     </div>
 
+    <!-- FLOATING ROCKET BUTTON (POJOK KIRI BAWAH LAYAR) -->
+<button class="btn btn-danger btn-pill shadow-lg"
+        style="position: fixed; bottom: 20px; left: 20px; z-index: 1050; padding: 12px 20px; font-weight: bold; font-size: 1rem;"
+        onclick="showRocketModal()">
+    🚀 ROCKET BILLING
+</button>
+
+<!-- MODAL ROCKET POP-UP -->
+<div class="modal modal-blur fade" id="modal-rocket-billing" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+        <div class="modal-content" style="border: 3px solid #d63939;">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold text-uppercase">🚀 Mass Rocket Billing</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('billing.mass-open') }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-important alert-warning small py-2 mb-3">
+                        Fitur ini otomatis melewati meja yang sedang terisi (Playing/Maintenance).
+                    </div>
+
+                    <!-- Input Rentang Meja -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Jangkauan Nomor Meja</label>
+                        <div class="row g-2">
+                            <div class="col">
+                                <div class="input-group input-group-flat">
+                                    <span class="input-group-text small">Dari</span>
+                                    <input type="number" name="start_table" class="form-control text-center fw-bold" value="1" min="1" max="14" required>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="input-group input-group-flat">
+                                    <span class="input-group-text small">Sampai</span>
+                                    <input type="number" name="end_table" class="form-control text-center fw-bold" value="6" min="1" max="14" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Nama Group Customer -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nama Utama Group Customer</label>
+                        <input type="text" name="customer_name" class="form-control text-uppercase" placeholder="Contoh: GALAXY MIX COMBO" required>
+                    </div>
+
+                    <!-- Pilih Durasi Paket Combo / Sejam Dua Jam -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Pilih Paket Billing</label>
+                        <select name="duration" class="form-select text-dark fw-bold" required>
+                            <option value="" disabled selected>-- Pilih Durasi/Paket --</option>
+                            <optgroup label="Custom">
+                                <option value="personal">Personal (Open Time)</option>
+                                <option value="60">Main Paket 1 Jam</option>
+                                <option value="120">Main Paket 2 Jam</option>
+                            </optgroup>
+                            <optgroup label="Paket Promo Master">
+                                @foreach ($packages as $package)
+                                    <option value="{{ $package->duration_value }}">
+                                        {{ $package->name }} (Rp {{ number_format($package->price, 0, ',', '.') }})
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="submit" class="btn btn-danger w-100 fw-bold py-2" onclick="return confirm('Tembak billing massal sekarang? Periksa kembali rentang meja!')">
+                        💥 TEMBAK BILLING ROKET
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
         // Logic Realtime Timer
         // Simpan status meja sebelumnya di memori untuk deteksi perubahan
@@ -458,6 +535,10 @@
                 }
             @endif
         });
+
+        function showRocketModal() {
+    new bootstrap.Modal(document.getElementById('modal-rocket-billing')).show();
+}
     </script>
 
     <!-- sound -->

@@ -1,8 +1,10 @@
 <?php
 
+
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
+
 use App\Http\Controllers\WaitingListController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\MasterController;
@@ -47,17 +49,25 @@ Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 // =========================================================================
 // 4. GROUP ROUTE ADMIN (Dikunci Ketat Khusus Role 'admin')
 // =========================================================================
-Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
+    Route::get('/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+
+    // TAMBAHKAN RUTE GET INI SUPAYA TIDAK ERROR NOT DEFINED, JID!
+    Route::get('/waiting-list', [WaitingListController::class, 'index'])->name('admin.waitinglist');
 
     // Input waiting list internal dari sisi kasir admin
-    Route::post('/admin/waiting-list', [WaitingListController::class, 'store'])->name('admin.waiting-list.store');
-    Route::post('/admin/billing/open/{id}', [BillingController::class, 'openTable'])->name('billing.open');
-    Route::post('/admin/billing/move', [BillingController::class, 'moveTable'])->name('billing.move');
-    Route::get('/admin/billing/stop/{id}', [BillingController::class, 'stopBilling'])->name('billing.stop');
+    Route::post('/waiting-list', [WaitingListController::class, 'store'])->name('admin.waiting-list.store');
 
-Route::get('/orderfnb', [OrderFnbController::class, 'index'])->name('admin.orderfnb');
-Route::post('/orderfnb', [OrderFnbController::class, 'store'])->name('admin.orderfnb.store');
+    Route::post('/billing/open/{id}', [BillingController::class, 'openTable'])->name('billing.open');
+    Route::post('/billing/move', [BillingController::class, 'moveTable'])->name('billing.move');
+    Route::get('/billing/stop/{id}', [BillingController::class, 'stopBilling'])->name('billing.stop');
+    Route::post('/billing/mass-open', [BillingController::class, 'massOpenTable'])->name('billing.mass-open');
+
+    Route::post('/waiting-list/verify/{id}', [WaitingListController::class, 'verifyPlayer'])->name('admin.waitinglist.verify');
+    Route::post('/waiting-list/skip/{id}', [WaitingListController::class, 'skipPlayer'])->name('admin.waitinglist.skip');
+
+    Route::get('/orderfnb', [OrderFnbController::class, 'index'])->name('admin.orderfnb');
+    Route::post('/orderfnb', [OrderFnbController::class, 'store'])->name('admin.orderfnb.store');
 });
 
 
@@ -68,6 +78,7 @@ Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () 
     Route::get('/dashboard', [MasterController::class, 'index'])->name('master.dashboard');
     Route::get('/pricing', [MasterController::class, 'pricingIndex'])->name('master.pricing');
     Route::post('/pricing/update/{id}', [MasterController::class, 'pricingUpdate'])->name('master.pricing.update');
+
     Route::get('/fnb', [MasterController::class, 'fnbIndex'])->name('master.fnb');
     Route::post('/fnb/category', [MasterController::class, 'storeCategory'])->name('master.fnb.category.store');
     Route::post('/fnb/product', [MasterController::class, 'storeProduct'])->name('master.fnb.product.store');
@@ -86,12 +97,15 @@ Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () 
     Route::post('/users/store', [UserController::class, 'store'])->name('master.users.store');
     Route::post('/users/update/{id}', [UserController::class, 'update'])->name('master.users.update');
     Route::delete('/users/delete/{id}', [UserController::class, 'destroy'])->name('master.users.destroy');
-});
 
+    Route::get('/waiting-list/setting', [MasterController::class, 'waitingListSetting'])->name('master.wlsetting');
+    Route::post('/waiting-list/setting/update', [MasterController::class, 'updateWaitingListSetting'])->name('master.waitinglist.update');
+
+    Route::get('/waiting-list', [WaitingListController::class, 'index'])->name('master.waiting-list');
+});
 
 // Rute khusus untuk dibaca oleh Python di komputer kasir toko
 Route::get('/status-lampu-iot', function() {
-    // ... isi logika IoT kamu tetap sama ...
     try {
         $now = now();
         $tables = \App\Models\PoolTable::orderBy('table_number', 'asc')->get();

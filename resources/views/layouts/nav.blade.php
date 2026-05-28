@@ -114,8 +114,8 @@
                                         <span class="nav-link-title">Manajemen Meja</span>
                                     </a>
                                 </li>
-                                <li class="nav-item {{ Route::is('master.waiting-list') ? 'active' : '' }}">
-                                    <a class="nav-link" href="#">
+                                <li class="nav-item {{ Route::is('master.wlsetting*') ? 'active' : '' }}">
+                                    <a class="nav-link" href="{{ route('master.wlsetting') }}">
                                         <span class="nav-link-title">Waiting List</span>
                                     </a>
                                 </li>
@@ -153,7 +153,11 @@
                                         <span class="nav-link-title">FnB</span>
                                     </a>
                                 </li>
-
+                                <li class="nav-item {{ Route::is('admin.waitinglist') ? 'active' : '' }}">
+                                    <a class="nav-link" href="{{ route('admin.waitinglist') }}">
+                                        <span class="nav-link-title">Waiting List</span>
+                                    </a>
+                                </li>
                                 <li class="nav-item">
                                     <a class="nav-link" href="#">
                                         <span class="nav-link-title">Laporan Keuangan</span>

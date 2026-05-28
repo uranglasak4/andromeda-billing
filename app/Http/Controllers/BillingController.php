@@ -140,5 +140,57 @@ $table->update(['status' => 'available']);
     return back()->with('error', 'Transaksi tidak ditemukan.');
 }
 
+public function massOpenTable(Request $request)
+{
+    $request->validate([
+        'start_table'   => 'required|integer',
+        'end_table'     => 'required|integer',
+        'customer_name' => 'required|string|max:30',
+        'duration'      => 'required'
+    ]);
+
+    $startTime = now();
+    $endTime = null;
+    $duration = null;
+    $billingType = 'personal';
+    $statusMeja = 'playing';
+
+    // 1. Tentukan Durasi Paket berdasarkan pilihan
+    if ($request->duration === 'personal') {
+        $billingType = 'personal';
+        $statusMeja = 'personal';
+    } else {
+        $billingType = 'package';
+        $duration = (int) $request->duration;
+        $endTime = $startTime->copy()->addMinutes($duration);
+    }
+
+    // 2. Ambil semua meja yang berada di rentang nomor yang diinput (Hanya yang statusnya AVAILABLE)
+    $tables = PoolTable::whereBetween('table_number', [$request->start_table, $request->end_table])
+                       ->where('status', 'available')
+                       ->get();
+
+    if ($tables->isEmpty()) {
+        return back()->with('error', 'Gagal menembak billing massal! Tidak ada meja kosong (Available) di rentang nomor tersebut.');
+    }
+
+    // 3. Loop untuk menembak data transaksi sekaligus
+    foreach ($tables as $table) {
+        $table->update(['status' => $statusMeja]);
+
+        Transaction::create([
+            'user_id'       => auth()->id() ?? 1,
+            'pool_table_id' => $table->id,
+            'customer_name' => strtoupper($request->customer_name) . " (M-{$table->table_number})",
+            'billing_type'  => $billingType,
+            'start_time'    => $startTime,
+            'end_time'      => $endTime,
+            'duration'      => $duration,
+            'status'        => 'running',
+        ]);
+    }
+
+    return back()->with('success', 'BOOM! Paket Massal Roket berhasil diaktifkan untuk ' . $tables->count() . ' meja sekaligus!');
+}
 
 }

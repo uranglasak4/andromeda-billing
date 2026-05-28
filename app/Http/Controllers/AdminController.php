@@ -55,9 +55,10 @@ public function getTablesStatus() {
     }
 
     // 2. AMBIL DATA WAITING LIST YANG AKTIF (Statusnya 'waiting')
-    $waitingList = WaitingList::where('status', 'waiting')
-                                ->orderBy('created_at', 'asc')
-                                ->get();
+$waitingList = WaitingList::whereDate('created_at', Carbon::today())
+    ->whereIn('status', ['waiting', 'not_verified', 'verified', 'call']) // <-- Sekarang ikut ditarik!
+    ->orderBy('created_at', 'asc')
+    ->get();
 
     // 3. BUNGKUS KEDUANYA MENJADI SATU KESATUAN JSON RESPONSE
     return response()->json([

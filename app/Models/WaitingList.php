@@ -9,13 +9,13 @@ class WaitingList extends Model
 {
     use HasFactory;
 
-    // Nama tabel di database (opsional jika sudah jamak/plural)
     protected $table = 'waiting_lists';
 
-    // Kolom yang boleh diisi secara massal (sesuai gambar HeidiSQL Anda)
     protected $fillable = [
         'customer_name',
         'phone_number',
+        'otp',
+        'tipe',
         'status'
     ];
 }
