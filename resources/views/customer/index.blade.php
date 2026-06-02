@@ -285,7 +285,7 @@
             if (hasAvailableTable) {
                 Swal.fire({
                     title: 'Meja Masih Tersedia! 🎱',
-                    text: 'Masih ada meja biliar yang kosong/ready. Kamu tidak perlu mengantri di waiting list. Silakan langsung pesan ke kasir Andromeda!',
+                    text: 'Masih ada meja biliar yang Ready. Kamu tidak perlu waiting list. Silakan langsung pesan ke kasir Andromeda!',
                     icon: 'warning',
                     confirmButtonColor: '#3085d6',
                     confirmButtonText: 'Oke, Siap!'
@@ -294,7 +294,7 @@
                 // SEKARANG MENGIKUTI DATA INPUTAN MASTER SECARA REALTIME
                 Swal.fire({
                     title: 'Kuota Online Penuh! 📋',
-                    text: 'Maaf, kuota maksimal antrean via website sudah mencapai batas limit (' + maxOnlineLimit +
+                    text: 'Maaf, kuota maksimal waiting list via website sudah mencapai batas (' + maxOnlineLimit +
                         ' Antrean). Silakan datang langsung untuk mengambil antrean offline di meja kasir.',
                     icon: 'error',
                     confirmButtonColor: '#d33',

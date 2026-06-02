@@ -224,6 +224,88 @@
                                 <i class="ti ti-player-stop me-2"></i> Selesaikan Billing
                             </button>
                         </div>
+                        <div class="col-12">
+                            {{-- KODE BARU YANG BENAR --}}
+                            <a href="#" id="btn-link-fnb" class="btn btn-warning fw-bold w-100 mb-2">
+                                <i class="ti ti-plus me-1"></i> + FnB
+                            </a>
+                        </div>
+                        <div class=\"card shadow-sm border-0 mb-3\">
+                            <div class=\"card-header bg-dark text-white py-2\">
+                                <h4 class=\"card-title text-white mb-0\">🛒 Rincian Struk FnB Meja</h4>
+                            </div>
+                            <div class=\"card-body p-0\">
+                                <div class=\"table-responsive\">
+                                    <table class=\"table table-vcenter table-striped card-table mb-0 small\">
+                                        <thead>
+                                            <tr class=\"text-muted bg-light\">
+                                                <th>Nama Menu FnB</th>
+                                                <th class=\"text-center\">Qty</th>
+                                                <th class=\"text-end\">Subtotal</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @php
+                                                $activeTx = $table->transactions->where('status', 'running')->first();
+                                                $totalFnbPrice = 0;
+                                                $totalFnbQty = 0;
+                                            @endphp
+
+                                            @if ($activeTx && $activeTx->orderFnbs->where('payment_status', 'unpaid')->count() > 0)
+                                                @foreach ($activeTx->orderFnbs->where('payment_status', 'unpaid') as $fnb)
+                                                    @php
+                                                        $totalFnbPrice += $fnb->subtotal;
+                                                        $totalFnbQty += $fnb->qty; // Menghitung total pcs fnb
+                                                    @endphp
+                                                    <tr class=\"fw-bold text-dark\">
+                                                        <td>{{ $fnb->fnbProduct->name ?? 'Menu FnB' }}</td>
+                                                        <td class=\"text-center\"><span class=\"badge bg-azure-lt
+                                                                fw-bold\">{{ $fnb->qty }} Pcs</span></td>
+                                                        <td class=\"text-end text-monospace\">Rp
+                                                            {{ number_format($fnb->subtotal, 0, ',', '.') }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            @else
+                                                <tr>
+                                                    <td colspan=\"3\" class=\"text-center py-3 text-muted italic\">Tidak ada
+                                                        pesanan FnB (Belum Lunas) di meja ini.</td>
+                                                </tr>
+                                            @endif
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class=\"card-footer bg-light py-2 fw-bold text-dark\">
+                                <div class=\"d-flex justify-content-between mb-1\">
+                                    <span>Total Qty FnB:</span>
+                                    <span class=\"text-azure\">{{ $totalFnbQty }} Pcs</span>
+                                </div>
+                                <div class=\"d-flex justify-content-between mb-1\">
+                                    <span>Total Bill FnB:</span>
+                                    <span class=\"text-monospace\">Rp
+                                        {{ number_format($totalFnbPrice, 0, ',', '.') }}</span>
+                                </div>
+
+                                <hr class=\"my-2 border-secondary\">
+
+                                @php
+                                    // Hitung estimasi billing main (bisa disesuaikan dengan logic AJAX JavaScript kamu jika dinamis)
+                                    $billingMainPrice = 0;
+                                    if ($activeTx) {
+                                        // Contoh jika bertipe paket / hourly statis, ambil dari database
+                                        $billingMainPrice = $activeTx->total_price ?? 0;
+                                    }
+                                    $grandTotalBill = $billingMainPrice + $totalFnbPrice;
+                                @endphp
+
+                                <div class=\"d-flex justify-content-between h4 mb-0 text-danger fw-extrabold\">
+                                    <span>GRAND TOTAL BILL:</span>
+                                    <span class=\"text-monospace\">Rp
+                                        {{ number_format($grandTotalBill, 0, ',', '.') }}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -258,83 +340,88 @@
     </div>
 
     <!-- FLOATING ROCKET BUTTON (POJOK KIRI BAWAH LAYAR) -->
-<button class="btn btn-danger btn-pill shadow-lg"
+    <button class="btn btn-danger btn-pill shadow-lg"
         style="position: fixed; bottom: 20px; left: 20px; z-index: 1050; padding: 12px 20px; font-weight: bold; font-size: 1rem;"
         onclick="showRocketModal()">
-    🚀 ROCKET BILLING
-</button>
+        🚀 ROCKET BILLING
+    </button>
 
-<!-- MODAL ROCKET POP-UP -->
-<div class="modal modal-blur fade" id="modal-rocket-billing" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
-        <div class="modal-content" style="border: 3px solid #d63939;">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title fw-bold text-uppercase">🚀 Mass Rocket Billing</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('billing.mass-open') }}" method="POST">
-                @csrf
-                <div class="modal-body">
-                    <div class="alert alert-important alert-warning small py-2 mb-3">
-                        Fitur ini otomatis melewati meja yang sedang terisi (Playing/Maintenance).
-                    </div>
+    <!-- MODAL ROCKET POP-UP -->
+    <div class="modal modal-blur fade" id="modal-rocket-billing" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+            <div class="modal-content" style="border: 3px solid #d63939;">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold text-uppercase">🚀 Mass Rocket Billing</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <form action="{{ route('billing.mass-open') }}" method="POST">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="alert alert-important alert-warning small py-2 mb-3">
+                            Fitur ini otomatis melewati meja yang sedang terisi (Playing/Maintenance).
+                        </div>
 
-                    <!-- Input Rentang Meja -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Jangkauan Nomor Meja</label>
-                        <div class="row g-2">
-                            <div class="col">
-                                <div class="input-group input-group-flat">
-                                    <span class="input-group-text small">Dari</span>
-                                    <input type="number" name="start_table" class="form-control text-center fw-bold" value="1" min="1" max="14" required>
+                        <!-- Input Rentang Meja -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Jangkauan Nomor Meja</label>
+                            <div class="row g-2">
+                                <div class="col">
+                                    <div class="input-group input-group-flat">
+                                        <span class="input-group-text small">Dari</span>
+                                        <input type="number" name="start_table" class="form-control text-center fw-bold"
+                                            value="1" min="1" max="14" required>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col">
-                                <div class="input-group input-group-flat">
-                                    <span class="input-group-text small">Sampai</span>
-                                    <input type="number" name="end_table" class="form-control text-center fw-bold" value="6" min="1" max="14" required>
+                                <div class="col">
+                                    <div class="input-group input-group-flat">
+                                        <span class="input-group-text small">Sampai</span>
+                                        <input type="number" name="end_table" class="form-control text-center fw-bold"
+                                            value="6" min="1" max="14" required>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Nama Group Customer -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Nama Utama Group Customer</label>
-                        <input type="text" name="customer_name" class="form-control text-uppercase" placeholder="Contoh: GALAXY MIX COMBO" required>
-                    </div>
+                        <!-- Nama Group Customer -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nama Utama Group Customer</label>
+                            <input type="text" name="customer_name" class="form-control text-uppercase"
+                                placeholder="Contoh: GALAXY MIX COMBO" required>
+                        </div>
 
-                    <!-- Pilih Durasi Paket Combo / Sejam Dua Jam -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Pilih Paket Billing</label>
-                        <select name="duration" class="form-select text-dark fw-bold" required>
-                            <option value="" disabled selected>-- Pilih Durasi/Paket --</option>
-                            <optgroup label="Custom">
-                                <option value="personal">Personal (Open Time)</option>
-                                <option value="60">Main Paket 1 Jam</option>
-                                <option value="120">Main Paket 2 Jam</option>
-                            </optgroup>
-                            <optgroup label="Paket Promo Master">
-                                @foreach ($packages as $package)
-                                    <option value="{{ $package->duration_value }}">
-                                        {{ $package->name }} (Rp {{ number_format($package->price, 0, ',', '.') }})
-                                    </option>
-                                @endforeach
-                            </optgroup>
-                        </select>
+                        <!-- Pilih Durasi Paket Combo / Sejam Dua Jam -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Pilih Paket Billing</label>
+                            <select name="duration" class="form-select text-dark fw-bold" required>
+                                <option value="" disabled selected>-- Pilih Durasi/Paket --</option>
+                                <optgroup label="Custom">
+                                    <option value="personal">Personal (Open Time)</option>
+                                    <option value="60">Main Paket 1 Jam</option>
+                                    <option value="120">Main Paket 2 Jam</option>
+                                </optgroup>
+                                <optgroup label="Paket Promo Master">
+                                    @foreach ($packages as $package)
+                                        <option value="{{ $package->duration_value }}">
+                                            {{ $package->name }} (Rp {{ number_format($package->price, 0, ',', '.') }})
+                                        </option>
+                                    @endforeach
+                                </optgroup>
+                            </select>
+                        </div>
                     </div>
-                </div>
-                <div class="modal-footer bg-light">
-                    <button type="submit" class="btn btn-danger w-100 fw-bold py-2" onclick="return confirm('Tembak billing massal sekarang? Periksa kembali rentang meja!')">
-                        💥 TEMBAK BILLING ROKET
-                    </button>
-                </div>
-            </form>
+                    <div class="modal-footer bg-light">
+                        <button type="submit" class="btn btn-danger w-100 fw-bold py-2"
+                            onclick="return confirm('Tembak billing massal sekarang? Periksa kembali rentang meja!')">
+                            💥 TEMBAK BILLING ROKET
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
+    <script>
         // Logic Realtime Timer
         // Simpan status meja sebelumnya di memori untuk deteksi perubahan
         let previousStatuses = {};
@@ -455,6 +542,14 @@
             window.currentSelectedTableId = id;
             document.getElementById('option-no-meja').innerText = number;
             document.getElementById('from-table-id').value = id;
+
+            // --- SINKRONISASI TOMBOL + FnB AGAR ID MEJA BENAR ---
+            const btnFnB = document.getElementById('btn-link-fnb');
+            if (btnFnB) {
+                btnFnB.href = `/admin/orderfnb?table_id=${id}`;
+                // Sesuaikan "/admin/orderfnb" dengan path url asli route('admin.orderfnb') kamu jika berbeda
+            }
+
             new bootstrap.Modal(document.getElementById('modal-option-table')).show();
         }
 
@@ -537,8 +632,8 @@
         });
 
         function showRocketModal() {
-    new bootstrap.Modal(document.getElementById('modal-rocket-billing')).show();
-}
+            new bootstrap.Modal(document.getElementById('modal-rocket-billing')).show();
+        }
     </script>
 
     <!-- sound -->

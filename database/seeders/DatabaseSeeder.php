@@ -32,11 +32,19 @@ class DatabaseSeeder extends Seeder
         ]);
 
         User::updateOrCreate([
-            'name' => 'Unyil',
-            'username' => 'unyil',
+            'name' => 'Admin',
+            'username' => 'admin',
             'password' => Hash::make('admin'),
             'role' => 'admin',
         ]);
+
+        User::updateOrCreate([
+            'name' => 'Wok',
+            'username' => 'wok',
+            'password' => Hash::make('wok'),
+            'role' => 'admin',
+        ]);
+
 
         // --- 2. SEED POOL TABLES (14 Meja Sekaligus) ---
         // Ini bagian yang akan menampilkan 14 meja di dashboard admin kamu
