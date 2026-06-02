@@ -207,106 +207,77 @@
         </div>
     </div>
 
-    <!-- Modal Option (Untuk Pindah/Stop Meja) -->
+    <!-- Modal Option (Untuk Pindah/Stop/Detail Meja) -->
     <div class="modal modal-blur fade" id="modal-option-table" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-body">
-                    <div class="modal-title h3 text-center">Opsi Meja <span id="option-no-meja"></span></div>
-                    <div class="row g-2">
+                    <div class="modal-title h3 text-center mb-3">Opsi Meja <span id="option-no-meja"></span></div>
+
+                    <div class="row g-2 mb-3">
                         <div class="col-12">
-                            <button class="btn btn-info w-100 py-3" onclick="showMoveModal()">
+                            <button class="btn btn-info w-100 py-2 fw-bold" onclick="showMoveModal()">
                                 <i class="ti ti-arrows-exchange me-2"></i> Pindah Meja
                             </button>
                         </div>
                         <div class="col-12">
-                            <button class="btn btn-danger w-100 py-3" onclick="stopBilling()">
+                            <button class="btn btn-danger w-100 py-2 fw-bold" onclick="stopBilling()">
                                 <i class="ti ti-player-stop me-2"></i> Selesaikan Billing
                             </button>
                         </div>
                         <div class="col-12">
-                            {{-- KODE BARU YANG BENAR --}}
-                            <a href="#" id="btn-link-fnb" class="btn btn-warning fw-bold w-100 mb-2">
+                            <a href="#" id="btn-link-fnb" class="btn btn-warning fw-bold w-100">
                                 <i class="ti ti-plus me-1"></i> + FnB
                             </a>
                         </div>
-                        <div class=\"card shadow-sm border-0 mb-3\">
-                            <div class=\"card-header bg-dark text-white py-2\">
-                                <h4 class=\"card-title text-white mb-0\">🛒 Rincian Struk FnB Meja</h4>
-                            </div>
-                            <div class=\"card-body p-0\">
-                                <div class=\"table-responsive\">
-                                    <table class=\"table table-vcenter table-striped card-table mb-0 small\">
-                                        <thead>
-                                            <tr class=\"text-muted bg-light\">
-                                                <th>Nama Menu FnB</th>
-                                                <th class=\"text-center\">Qty</th>
-                                                <th class=\"text-end\">Subtotal</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @php
-                                                $activeTx = $table->transactions->where('status', 'running')->first();
-                                                $totalFnbPrice = 0;
-                                                $totalFnbQty = 0;
-                                            @endphp
+                    </div>
 
-                                            @if ($activeTx && $activeTx->orderFnbs->where('payment_status', 'unpaid')->count() > 0)
-                                                @foreach ($activeTx->orderFnbs->where('payment_status', 'unpaid') as $fnb)
-                                                    @php
-                                                        $totalFnbPrice += $fnb->subtotal;
-                                                        $totalFnbQty += $fnb->qty; // Menghitung total pcs fnb
-                                                    @endphp
-                                                    <tr class=\"fw-bold text-dark\">
-                                                        <td>{{ $fnb->fnbProduct->name ?? 'Menu FnB' }}</td>
-                                                        <td class=\"text-center\"><span class=\"badge bg-azure-lt
-                                                                fw-bold\">{{ $fnb->qty }} Pcs</span></td>
-                                                        <td class=\"text-end text-monospace\">Rp
-                                                            {{ number_format($fnb->subtotal, 0, ',', '.') }}</td>
-                                                    </tr>
-                                                @endforeach
-                                            @else
-                                                <tr>
-                                                    <td colspan=\"3\" class=\"text-center py-3 text-muted italic\">Tidak ada
-                                                        pesanan FnB (Belum Lunas) di meja ini.</td>
-                                                </tr>
-                                            @endif
-                                        </tbody>
-                                    </table>
-                                </div>
+                    <!-- 🛒 RINCIAN STRUK FNB & TOTAL BILLING MEJA (Dinamis via JS) -->
+                    <div class="card shadow-sm border-1 mb-0">
+                        <div class="card-header bg-dark text-white py-2">
+                            <h4 class="card-title text-white mb-0 small"><i class="ti ti-shopping-cart me-1"></i> Rincian
+                                Struk FnB Meja</h4>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                <table class="table table-vcenter table-striped card-table mb-0 small">
+                                    <thead>
+                                        <tr class="text-muted bg-light" style="font-size: 0.75rem;">
+                                            <th>Menu FnB</th>
+                                            <th class="text-center">Qty</th>
+                                            <th class="text-end">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fnb-table-body" style="font-size: 0.85rem;">
+                                        <!-- Diisi oleh JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="card-footer bg-light py-2 fw-bold text-dark" style="font-size: 0.85rem;">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Total Qty FnB:</span>
+                                <span id="fnb-total-qty" class="text-azure">0 Pcs</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Total Bill FnB:</span>
+                                <span id="fnb-total-price" class="text-monospace text-primary">Rp 0</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Biaya Billing Meja:</span>
+                                <span id="billing-main-price" class="text-monospace text-secondary">Rp 0</span>
                             </div>
 
-                            <div class=\"card-footer bg-light py-2 fw-bold text-dark\">
-                                <div class=\"d-flex justify-content-between mb-1\">
-                                    <span>Total Qty FnB:</span>
-                                    <span class=\"text-azure\">{{ $totalFnbQty }} Pcs</span>
-                                </div>
-                                <div class=\"d-flex justify-content-between mb-1\">
-                                    <span>Total Bill FnB:</span>
-                                    <span class=\"text-monospace\">Rp
-                                        {{ number_format($totalFnbPrice, 0, ',', '.') }}</span>
-                                </div>
+                            <hr class="my-1 border-secondary">
 
-                                <hr class=\"my-2 border-secondary\">
-
-                                @php
-                                    // Hitung estimasi billing main (bisa disesuaikan dengan logic AJAX JavaScript kamu jika dinamis)
-                                    $billingMainPrice = 0;
-                                    if ($activeTx) {
-                                        // Contoh jika bertipe paket / hourly statis, ambil dari database
-                                        $billingMainPrice = $activeTx->total_price ?? 0;
-                                    }
-                                    $grandTotalBill = $billingMainPrice + $totalFnbPrice;
-                                @endphp
-
-                                <div class=\"d-flex justify-content-between h4 mb-0 text-danger fw-extrabold\">
-                                    <span>GRAND TOTAL BILL:</span>
-                                    <span class=\"text-monospace\">Rp
-                                        {{ number_format($grandTotalBill, 0, ',', '.') }}</span>
-                                </div>
+                            <div class="d-flex justify-content-between h4 mb-0 text-danger fw-bold pt-1">
+                                <span>GRAND TOTAL:</span>
+                                <span id="grand-total-bill" class="text-monospace">Rp 0</span>
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -539,19 +510,93 @@
         }
 
         function showOptionModal(id, number) {
-            window.currentSelectedTableId = id;
-            document.getElementById('option-no-meja').innerText = number;
-            document.getElementById('from-table-id').value = id;
+    window.currentSelectedTableId = id;
+    document.getElementById('option-no-meja').innerText = number;
+    document.getElementById('from-table-id').value = id;
 
-            // --- SINKRONISASI TOMBOL + FnB AGAR ID MEJA BENAR ---
-            const btnFnB = document.getElementById('btn-link-fnb');
-            if (btnFnB) {
-                btnFnB.href = `/admin/orderfnb?table_id=${id}`;
-                // Sesuaikan "/admin/orderfnb" dengan path url asli route('admin.orderfnb') kamu jika berbeda
+    const btnFnB = document.getElementById('btn-link-fnb');
+    if (btnFnB) {
+        btnFnB.href = `/admin/orderfnb?table_id=${id}`;
+    }
+
+    const tableBody = document.getElementById('fnb-table-body');
+    const txtTotalQty = document.getElementById('fnb-total-qty');
+    const txtTotalPrice = document.getElementById('fnb-total-price');
+    const txtBillingPrice = document.getElementById('billing-main-price');
+    const txtGrandTotal = document.getElementById('grand-total-bill');
+
+    tableBody.innerHTML = `<tr><td colspan="3" class="text-center py-3 text-muted">Memuat rincian pesanan...</td></tr>`;
+    txtTotalQty.innerText = "0 Pcs";
+    txtTotalPrice.innerText = "Rp 0";
+    txtBillingPrice.innerText = "Rp 0";
+    txtGrandTotal.innerText = "Rp 0";
+
+    // Memanggil API dengan ID Meja murni dari database
+    fetch(`/admin/billing/active-detail/${id}`)
+        .then(res => {
+            if (!res.ok) {
+                throw new Error('Server Return Error 500/404');
             }
+            return res.json();
+        })
+        .then(data => {
+            if (data.success && data.fnb_orders.length > 0) {
+                let htmlRows = '';
+                let totalQty = 0;
+                let totalFnbPrice = 0;
 
-            new bootstrap.Modal(document.getElementById('modal-option-table')).show();
-        }
+                data.fnb_orders.forEach(item => {
+                    totalQty += item.qty;
+                    totalFnbPrice += item.subtotal;
+
+                    htmlRows += `
+                        <tr class="fw-bold text-dark">
+                            <td>
+                                <div>${item.product_name}</div>
+                                <div class="text-muted small" style="font-size: 0.75rem;">
+                                    Rp ${parseInt(item.price).toLocaleString('id-ID')} × ${item.qty}
+                                </div>
+                            </td>
+                            <td class="text-center valign-middle pt-3">
+                                <span class="badge bg-azure-lt fw-bold">${item.qty} Pcs</span>
+                            </td>
+                            <td class="text-end text-monospace valign-middle pt-3">
+                                Rp ${parseInt(item.subtotal).toLocaleString('id-ID')}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tableBody.innerHTML = htmlRows;
+                txtTotalQty.innerText = `${totalQty} Pcs`;
+                txtTotalPrice.innerText = `Rp ${totalFnbPrice.toLocaleString('id-ID')}`;
+
+                let billingPrice = parseInt(data.billing_price) || 0;
+                txtBillingPrice.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
+
+                let grandTotal = totalFnbPrice + billingPrice;
+                txtGrandTotal.innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
+
+            } else {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="text-center py-3 text-muted italic">
+                            Tidak ada pesanan FnB (Belum Lunas) di meja ini.
+                        </td>
+                    </tr>
+                `;
+                let billingPrice = data.billing_price ? parseInt(data.billing_price) : 0;
+                txtBillingPrice.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
+                txtGrandTotal.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
+            }
+        })
+        .catch(err => {
+            tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-3">Gagal memuat rincian data pesanan.</td></tr>`;
+            console.error("Terjadi error Fetch:", err);
+        });
+
+    new bootstrap.Modal(document.getElementById('modal-option-table')).show();
+}
 
         function showMoveModal() {
             bootstrap.Modal.getInstance(document.getElementById('modal-option-table')).hide();
@@ -637,5 +682,4 @@
     </script>
 
     <!-- sound -->
-
 @endsection

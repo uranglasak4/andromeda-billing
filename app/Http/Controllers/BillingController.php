@@ -193,4 +193,68 @@ public function massOpenTable(Request $request)
     return back()->with('success', 'BOOM! Paket Massal Roket berhasil diaktifkan untuk ' . $tables->count() . ' meja sekaligus!');
 }
 
+public function getActiveDetail($table_id)
+{
+    // 1. Cari transaksi running di meja tersebut menggunakan pool_table_id
+    $transaction = \App\Models\Transaction::where('pool_table_id', $table_id)
+                    ->where('status', 'running')
+                    ->first();
+
+    if (!$transaction) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Tidak ada transaksi aktif'
+        ]);
+    }
+
+    // 2. HITUNG HARGA BILLING SECARA REAL-TIME JIKA TRANSAKSI MASIH RUNNING
+    $billingPrice = 0;
+    $now = now();
+    $startTime = \Carbon\Carbon::parse($transaction->start_time);
+
+    if ($transaction->billing_type === 'hourly') {
+        $elapsedMinutes = $startTime->diffInMinutes($now);
+
+        // Mengambil rule pricing pertama, jika tidak ada gunakan default Rp 27.000 / jam
+        $pricing = \App\Models\PricingRule::first();
+        $pricePerHour = $pricing ? $pricing->price_per_hour : 27000;
+        $pricePerMinute = $pricePerHour / 60;
+
+        $billingPrice = round($elapsedMinutes * $pricePerMinute);
+
+        // Terapkan minimum charge jika ada
+        $minCharge = $pricing ? $pricing->min_charge : 10000;
+        if ($billingPrice < $minCharge) {
+            $billingPrice = $minCharge;
+        }
+    } elseif ($transaction->billing_type === 'package') {
+        // Jika paket, ambil harga flat dari relasi package atau total_price sementara
+        $billingPrice = $transaction->total_price ?? 0;
+    } else {
+        // Tipe personal / open time berjalan
+        $billingPrice = $transaction->total_price ?? 0;
+    }
+
+    // 3. Ambil order FnB yang belum lunas (unpaid) milik transaksi ini
+    $orders = $transaction->orderFnbs()
+            ->with('fnbProduct')
+            ->where('payment_status', 'unpaid')
+            ->get()
+            ->map(function($order) {
+                return [
+                    'product_name' => $order->fnbProduct->name ?? 'Menu FnB',
+                    'price'        => (int) ($order->price ?? 0), // Perbaikan: Hapus anisotropy_cast yang bikin crash
+                    'qty'          => (int) $order->qty,
+                    'subtotal'     => (int) $order->subtotal
+                ];
+            });
+
+    return response()->json([
+        'success'       => true,
+        'billing_price' => (int) $billingPrice,
+        'fnb_orders'    => $orders,
+        'total_fnb'     => (int) $orders->sum('subtotal')
+    ]);
+}
+
 }

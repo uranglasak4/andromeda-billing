@@ -62,12 +62,16 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::post('/billing/move', [BillingController::class, 'moveTable'])->name('billing.move');
     Route::get('/billing/stop/{id}', [BillingController::class, 'stopBilling'])->name('billing.stop');
     Route::post('/billing/mass-open', [BillingController::class, 'massOpenTable'])->name('billing.mass-open');
+    Route::get('/billing/active-detail/{table_id}', [BillingController::class, 'getActiveDetail']);
 
     Route::post('/waiting-list/verify/{id}', [WaitingListController::class, 'verifyPlayer'])->name('admin.waitinglist.verify');
     Route::post('/waiting-list/skip/{id}', [WaitingListController::class, 'skipPlayer'])->name('admin.waitinglist.skip');
 
     Route::get('/orderfnb', [OrderFnbController::class, 'index'])->name('admin.orderfnb');
     Route::post('/orderfnb', [OrderFnbController::class, 'store'])->name('admin.orderfnb.store');
+    Route::get('/orderfnb/current-cart/{table_id}', [OrderFnbController::class, 'getCurrentCart']);
+Route::delete('/orderfnb/delete-item/{order_id}', [OrderFnbController::class, 'destroyItem'])->name('admin.orderfnb.delete-item');
+Route::get('/orderfnb/active-orders/{table_id}', [OrderFnbController::class, 'getActiveTableOrders']);
 });
 
 

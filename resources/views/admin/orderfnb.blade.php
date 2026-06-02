@@ -90,11 +90,11 @@
                             </div>
 
                             <div id="box-select-table">
+                                <!-- KODE BARU -->
                                 <select name="transaction_id" id="select-meja-fnb" class="form-select fw-bold">
                                     <option value="">-- Pilih Meja Aktif --</option>
                                     @foreach ($activeTransactions as $tx)
-                                        {{-- Kunci otomatis jika request('table_id') COCOK dengan pool_table_id --}}
-                                        <option value="{{ $tx->id }}"
+                                        <option value="{{ $tx->id }}" data-table-id="{{ $tx->pool_table_id }}"
                                             {{ request('table_id') == $tx->pool_table_id ? 'selected' : '' }}>
                                             MEJA {{ $tx->poolTable->table_number ?? '' }} ({{ $tx->customer_name }})
                                         </option>
@@ -204,9 +204,10 @@
     <script>
         let cart = [];
 
-        // JAVASCRIPT LIVE FILTER KATEGORI (KILAT & UX NYAMAN)
+        // =========================================================================
+        // 1. LIVE FILTER KATEGORI (UX NYAMAN)
+        // =========================================================================
         function filterCategory(className, btnElement) {
-            // 1. Ganti style tombol aktif
             const buttons = document.querySelectorAll('.btn-filter-cat');
             buttons.forEach(btn => {
                 btn.classList.remove('btn-warning');
@@ -215,7 +216,6 @@
             btnElement.classList.remove('btn-outline-light');
             btnElement.classList.add('btn-warning');
 
-            // 2. Saring item menu
             const items = document.querySelectorAll('.fnb-item-card');
             items.forEach(item => {
                 if (className === 'all' || item.classList.contains(className)) {
@@ -226,6 +226,9 @@
             });
         }
 
+        // =========================================================================
+        // 2. TOGGLE TIPE ORDERAN (BILL MEJA / STANDALONE)
+        // =========================================================================
         function toggleType(type) {
             if (type === 'table') {
                 document.getElementById('lbl-type-table').className =
@@ -234,6 +237,9 @@
                     'form-check form-check-inline m-0 btn w-100 p-2 border text-muted';
                 document.getElementById('box-select-table').classList.remove('d-none');
                 document.getElementById('box-input-name').classList.add('d-none');
+
+                // PERBAIKAN: Saat balik ke Bill Meja, otomatis tarik data ulang dari database berdasarkan meja yang terpilih
+                loadCartBySelectedMeja();
             } else {
                 document.getElementById('lbl-type-standalone').className =
                     'form-check form-check-inline m-0 btn w-100 p-2 border active-type-btn';
@@ -241,9 +247,16 @@
                     'form-check form-check-inline m-0 btn w-100 p-2 border text-muted';
                 document.getElementById('box-select-table').classList.add('d-none');
                 document.getElementById('box-input-name').classList.remove('d-none');
+
+                // Kosongkan keranjang murni untuk transaksi Standalone / Walk-in baru
+                cart = [];
+                renderCart();
             }
         }
 
+        // =========================================================================
+        // 3. TAMBAH PRODUK KE KERANJANG (CREATE/UPDATE LOKAL)
+        // =========================================================================
         function addToCart(id, name, price, maxStock) {
             let existing = cart.find(item => item.id === id);
             if (existing) {
@@ -258,19 +271,28 @@
                     return;
                 }
                 cart.push({
-                    id,
-                    name,
-                    price,
+                    id: id,
+                    name: name,
+                    price: price,
                     qty: 1,
-                    maxStock
+                    maxStock: maxStock
                 });
             }
             renderCart();
         }
 
+        // =========================================================================
+        // 4. UPDATE QUANTITY (TAMBAH / KURANG ITEM DI FORM)
+        // =========================================================================
         function updateQty(id, delta) {
             let item = cart.find(i => i.id === id);
             if (item) {
+                // Jika data lama dari DB dikurangi sampai 0, arahkan ke fungsi delete permanent
+                if (item.qty + delta <= 0 && item.order_id) {
+                    deleteExistingOrder(item.order_id);
+                    return;
+                }
+
                 item.qty += delta;
                 if (item.qty > item.maxStock) {
                     Swal.fire('Stok Batas!', 'Stok tidak mencukupi.', 'warning');
@@ -283,6 +305,9 @@
             renderCart();
         }
 
+        // =========================================================================
+        // 5. RENDER CART KE SIDEBAR KANAN (TAMPILAN UTAMA POS)
+        // =========================================================================
         function renderCart() {
             const emptyState = document.getElementById('cart-empty-state');
             const cartList = document.getElementById('cart-table-list');
@@ -305,23 +330,40 @@
             cart.forEach(item => {
                 let subtotal = item.price * item.qty;
                 total += subtotal;
+
+                // Cek apakah data ini pesanan tersimpan di DB atau menu baru di-klik kasir
+                const isSaved = item.hasOwnProperty('order_id');
+
                 html += `
-                <tr class="border-bottom">
-                    <td class="p-2 text-start">
-                        <div class="fw-bold text-dark">${item.name}</div>
-                        <div class="text-muted small">Rp ${item.price.toLocaleString('id-ID')}</div>
-                    </td>
-                    <td class="p-2">
-                        <div class="input-group input-group-sm" style="width: 90px; margin: 0 auto;">
-                            <button class="btn btn-outline-secondary px-2 py-0" type="button" onclick="updateQty(${item.id}, -1)">-</button>
-                            <input type="text" class="form-control text-center bg-white p-0 fw-bold text-dark" value="${item.qty}" readonly>
-                            <button class="btn btn-outline-secondary px-2 py-0" type="button" onclick="updateQty(${item.id}, 1)">+</button>
-                        </div>
-                    </td>
-                    <td class="p-2 text-end fw-bold text-primary">
-                        Rp ${subtotal.toLocaleString('id-ID')}
-                    </td>
-                </tr>
+            <tr class="border-bottom">
+                <td class="p-2 text-start">
+                    <div class="fw-bold text-dark">
+                        ${item.name}
+                        ${isSaved ? '<span class="badge bg-green-lt ms-1">Saved</span>' : '<span class="badge bg-blue-lt ms-1">Baru</span>'}
+                    </div>
+                    <div class="text-muted small">Rp ${item.price.toLocaleString('id-ID')}</div>
+                </td>
+                <td class="p-2">
+                    <div class="input-group input-group-sm" style="width: 90px; margin: 0 auto;">
+                        <button class="btn btn-outline-secondary px-2 py-0" type="button" onclick="updateQty(${item.id}, -1)">-</button>
+                        <input type="text" class="form-control text-center bg-white p-0 fw-bold text-dark" value="${item.qty}" readonly>
+                        <button class="btn btn-outline-secondary px-2 py-0" type="button" onclick="updateQty(${item.id}, 1)">+</button>
+                    </div>
+                </td>
+                <td class="p-2 text-end fw-bold text-primary">
+                    Rp ${subtotal.toLocaleString('id-ID')}
+                </td>
+                <td class="p-2 text-center">
+                    ${isSaved ?
+                        `<button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="deleteExistingOrder(${item.order_id})">
+                                <i class="ti ti-trash fs-2"></i>
+                             </button>` :
+                        `<button type="button" class="btn btn-sm btn-link text-muted p-0" onclick="removeLocalItem(${item.id})">
+                                <i class="ti ti-x fs-2"></i>
+                             </button>`
+                    }
+                </td>
+            </tr>
             `;
             });
 
@@ -329,6 +371,116 @@
             totalText.innerText = 'Rp ' + total.toLocaleString('id-ID');
         }
 
+        // Fungsi menghapus item yang baru di-klik kasir (belum masuk DB)
+        function removeLocalItem(id) {
+            cart = cart.filter(i => i.id !== id);
+            renderCart();
+        }
+
+        // =========================================================================
+        // 6. DELETE: HAPUS PERMANEN PESANAN DARI DATABASE DENGAN SWEETALERT
+        // =========================================================================
+        function deleteExistingOrder(orderId) {
+            Swal.fire({
+                title: 'Hapus Menu Pesanan?',
+                text: "Item akan dihapus dari meja secara permanen dan stok akan dikembalikan!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Menghapus...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    fetch(`/admin/orderfnb/delete-item/${orderId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            Swal.close();
+                            if (data.success) {
+                                Swal.fire('Terhapus!', data.message, 'success');
+                                // Ambil ulang data keranjang ter-update dari server
+                                loadCartBySelectedMeja();
+                            } else {
+                                Swal.fire('Gagal!', data.message, 'error');
+                            }
+                        })
+                        .catch(err => {
+                            Swal.close();
+                            Swal.fire('Error!', 'Gagal menghubungi server.', 'error');
+                        });
+                }
+            });
+        }
+
+        // =========================================================================
+        // 7. READ: AMBIL DATA ORDERAN MEJA SECARA REAL-TIME JIKA DROPDOWN / URL BERUBAH
+        // =========================================================================
+        function loadCartBySelectedMeja() {
+    const selectMeja = document.getElementById('select-meja-fnb');
+    if (!selectMeja) return;
+
+    const transactionId = selectMeja.value;
+    const selectedOption = selectMeja.options[selectMeja.selectedIndex];
+
+    if (!transactionId || !selectedOption) {
+        cart = [];
+        renderCart();
+        return;
+    }
+
+    // Ambil ID Meja murni dari data-attribute yang sudah kita buat di atas
+    const poolTableId = selectedOption.getAttribute('data-table-id');
+
+    if (!poolTableId) return;
+
+    Swal.fire({
+        title: 'Memuat Menu Meja...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    fetch(`/admin/orderfnb/current-cart/${poolTableId}`)
+        .then(res => res.json())
+        .then(data => {
+            Swal.close();
+            cart = data.map(item => {
+                return {
+                    id: item.id,
+                    order_id: item.order_id,
+                    name: item.name,
+                    price: item.price,
+                    qty: item.qty,
+                    maxStock: 999
+                };
+            });
+            renderCart();
+        })
+        .catch(err => {
+            Swal.close();
+            console.error("Gagal memuat item keranjang meja:", err);
+        });
+}
+
+        // Hubungkan fungsi load data ke event change dropdown secara manual
+        document.getElementById('select-meja-fnb').addEventListener('change', loadCartBySelectedMeja);
+
+        // =========================================================================
+        // 8. UPDATE / SUBMIT ORDER (CHECKOUT NOTA) DENGAN SWEETALERT
+        // =========================================================================
         function checkoutOrder() {
             if (cart.length === 0) {
                 Swal.fire('Keranjang Kosong!', 'Pilih menu makanan dulu sebelum proses.', 'info');
@@ -338,12 +490,14 @@
             const type = document.querySelector('input[name="order_type"]:checked').value;
             let payload = {
                 order_type: type,
-                items: cart,
+                items: cart.map(i => ({
+                    id: i.id,
+                    qty: i.qty
+                })),
                 _token: "{{ csrf_token() }}"
             };
 
             if (type === 'table') {
-                // FIX: Diubah ke 'select-meja-fnb' agar sesuai dengan ID element select di HTML atas
                 const txId = document.getElementById('select-meja-fnb').value;
                 if (!txId) {
                     Swal.fire('Pilih Meja!', 'Tentukan nomor meja billing yang dituju.', 'warning');
@@ -367,7 +521,7 @@
                 }
             });
 
-            fetch("{{ route('admin.orderfnb') }}", {
+            fetch("{{ route('admin.orderfnb.store') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -376,62 +530,59 @@
                     },
                     body: JSON.stringify(payload)
                 })
-                .then(async res => {
-                    const isJson = res.headers.get('content-type')?.includes('application/json');
-                    const data = isJson ? await res.json() : null;
-
-                    if (!res.ok) {
-                        throw new Error(data?.message || 'Terjadi gangguan internal server (500).');
-                    }
-                    return data;
-                })
+                .then(res => res.json())
                 .then(data => {
-                    if (data && data.success) {
-                        Swal.fire('Berhasil!', data.message, 'success').then(() => {
-                            cart = [];
-                            location.reload();
+                    Swal.close();
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Berhasil!',
+                            text: data.message,
+                            icon: 'success'
+                        }).then(() => {
+                            if (type === 'table') {
+                                // Kuncinya disini: Refresh data ter-update saja tanpa me-reload paksa halaman!
+                                loadCartBySelectedMeja();
+                            } else {
+                                cart = [];
+                                renderCart();
+                                document.getElementById('inp_customer_name').value = '';
+                            }
                         });
                     } else {
-                        Swal.fire('Gagal!', data?.message || 'Terjadi kesalahan sistem.', 'error');
+                        Swal.fire('Gagal!', data.message, 'error');
                     }
                 })
                 .catch(err => {
-                    Swal.fire('Sistem Error!', err.message, 'error');
+                    Swal.close();
+                    Swal.fire('Sistem Error!', 'Terjadi gangguan koneksi ke server.', 'error');
                 });
         }
 
-        // --- SHORTCUT OTOMATIS LOCK MEJA DARI DASHBOARD ---
+        // =========================================================================
+        // 9. AUTOMATIC RUN ON LOAD (SAAT KLIK + FNB DARI MONITORING DASHBOARD)
+        // =========================================================================
         document.addEventListener("DOMContentLoaded", function() {
             const urlParams = new URLSearchParams(window.location.search);
+            // Dashboard mengirim parameter '?table_id='
             const tableIdFromUrl = urlParams.get('table_id');
 
             if (tableIdFromUrl) {
-                // 1. Geser tipe orderan ke "BILL MEJA" secara visual
                 toggleType('table');
 
-                // 2. Ambil element select box meja
                 const selectMeja = document.getElementById('select-meja-fnb');
-
                 if (selectMeja) {
-                    // Cari tahu option mana yang disuntik kata 'selected' oleh Blade dari backend
-                    const selectedOption = selectMeja.querySelector('option[selected]');
-
-                    if (selectedOption) {
-                        // Set nilai select utama ke ID Transaksi yang sesuai
-                        selectMeja.value = selectedOption.value;
-                    } else {
-                        // Jika server-side lolos, lakukan fallback pencarian manual via text/looping option
-                        // Ini untuk memastikan jika 'selected' dari Blade gagal merender objeknya
+                    setTimeout(() => {
                         for (let i = 0; i < selectMeja.options.length; i++) {
                             let opt = selectMeja.options[i];
-                            // Jika text option mengandung nomor meja yang dicari (Misal: "MEJA 8")
-                            if (opt.text.includes(`MEJA ${tableIdFromUrl}`) || opt.text.toLowerCase().includes(
-                                    `meja ${tableIdFromUrl}`)) {
+                            // COCOKKAN isi option dengan parameter URL pengirim
+                            if (opt.text.toLowerCase().includes(`meja ${tableIdFromUrl}`)) {
                                 selectMeja.value = opt.value;
+                                // Trigger pemanggilan data otomatis
+                                loadCartBySelectedMeja();
                                 break;
                             }
                         }
-                    }
+                    }, 150);
                 }
             }
         });
