@@ -155,17 +155,21 @@ public function massOpenTable(Request $request)
     $billingType = 'personal';
     $statusMeja = 'playing';
 
-    // 1. Tentukan Durasi Paket berdasarkan pilihan
+    // Perbaikan Integrasi Kondisi Durasi dari Modal Rocket Baru
     if ($request->duration === 'personal') {
         $billingType = 'personal';
         $statusMeja = 'personal';
+    } elseif ($request->duration === 'manual') {
+        $billingType = 'hourly';
+        $duration = $request->manual_hours * 60; // Konversi jam input ke menit
+        $endTime = $startTime->copy()->addMinutes($duration);
     } else {
         $billingType = 'package';
         $duration = (int) $request->duration;
         $endTime = $startTime->copy()->addMinutes($duration);
     }
 
-    // 2. Ambil semua meja yang berada di rentang nomor yang diinput (Hanya yang statusnya AVAILABLE)
+    // Ambil semua meja yang berada di rentang nomor yang diinput (Hanya yang statusnya AVAILABLE)
     $tables = PoolTable::whereBetween('table_number', [$request->start_table, $request->end_table])
                        ->where('status', 'available')
                        ->get();
@@ -174,7 +178,7 @@ public function massOpenTable(Request $request)
         return back()->with('error', 'Gagal menembak billing massal! Tidak ada meja kosong (Available) di rentang nomor tersebut.');
     }
 
-    // 3. Loop untuk menembak data transaksi sekaligus
+    // Loop transaksi massal
     foreach ($tables as $table) {
         $table->update(['status' => $statusMeja]);
 
@@ -251,10 +255,37 @@ public function getActiveDetail($table_id)
 
     return response()->json([
         'success'       => true,
+        'transaction_id'=> $transaction->id,
+        'customer_name' => $transaction->customer_name,
         'billing_price' => (int) $billingPrice,
         'fnb_orders'    => $orders,
         'total_fnb'     => (int) $orders->sum('subtotal')
     ]);
 }
+
+public function updateCustomerName(Request $request)
+    {
+        $request->validate([
+            'transaction_id' => 'required|exists:transactions,id',
+            'customer_name'  => 'required|string|max:50'
+        ]);
+
+        try {
+            $transaction = Transaction::findOrFail($request->transaction_id);
+            $transaction->update([
+                'customer_name' => strtoupper($request->customer_name)
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Nama customer berhasil diperbarui'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengubah nama: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
 }

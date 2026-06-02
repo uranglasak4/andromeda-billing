@@ -234,9 +234,36 @@
 
                     <!-- 🛒 RINCIAN STRUK FNB & TOTAL BILLING MEJA (Dinamis via JS) -->
                     <div class="card shadow-sm border-1 mb-0">
-                        <div class="card-header bg-dark text-white py-2">
-                            <h4 class="card-title text-white mb-0 small"><i class="ti ti-shopping-cart me-1"></i> Rincian
-                                Struk FnB Meja</h4>
+                        <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
+                            <h4 class="card-title text-white mb-0 fw-bold small">
+                                <i class="ti ti-receipt me-1"></i> INVOICE
+                            </h4>
+
+                            <div class="d-flex align-items-center justify-content-end"
+                                style="width: 70%; max-width: 300px;">
+                                <span class="text-white-50 small me-2 d-none d-sm-inline"
+                                    style="white-space: nowrap;">Cust:</span>
+
+                                <div class="d-flex align-items-center bg-transparent w-100" style="position: relative;">
+                                    <input type="text" id="option-customer-name-input"
+                                        class="form-control text-end bg-transparent text-white fw-bold border-0 p-0 pe-1 shadow-none"
+                                        style="font-size: 0.85rem; letter-spacing: 0.5px; border-bottom: 1px dashed rgba(255,255,255,0.4) !important; border-radius: 0; width: 100%; height: auto;"
+                                        placeholder="Nama Pelanggan..."
+                                        onkeydown="if(event.key === 'Enter') { event.preventDefault(); updateCustomerNameDirectly(); }">
+
+                                    <svg xmlns="http://www.w3.org/2000/svg" onclick="updateCustomerNameDirectly()"
+                                        class="icon icon-tabler icons-tabler-outline icon-tabler-device-floppy text-warning ms-2"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                        stroke-linecap="round" stroke-linejoin="round"
+                                        style="width: 20px; height: 20px; min-width: 20px; min-height: 20px; cursor: pointer; flex-shrink: 0;"
+                                        title="Klik untuk Simpan">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                        <path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
+                                        <path d="M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                                        <path d="M14 4l0 4l-6 0l0 -4" />
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
@@ -277,7 +304,6 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
@@ -333,52 +359,71 @@
                             Fitur ini otomatis melewati meja yang sedang terisi (Playing/Maintenance).
                         </div>
 
-                        <!-- Input Rentang Meja -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Jangkauan Nomor Meja</label>
                             <div class="row g-2">
                                 <div class="col">
                                     <div class="input-group input-group-flat">
                                         <span class="input-group-text small">Dari</span>
-                                        <input type="number" name="start_table" class="form-control text-center fw-bold"
-                                            value="1" min="1" max="14" required>
+                                        <input type="number" id="rocket-start-table" name="start_table"
+                                            class="form-control text-center fw-bold" value="1" min="1"
+                                            max="14" oninput="calculateRocketPrice()" required>
                                     </div>
                                 </div>
                                 <div class="col">
                                     <div class="input-group input-group-flat">
                                         <span class="input-group-text small">Sampai</span>
-                                        <input type="number" name="end_table" class="form-control text-center fw-bold"
-                                            value="6" min="1" max="14" required>
+                                        <input type="number" id="rocket-end-table" name="end_table"
+                                            class="form-control text-center fw-bold" value="6" min="1"
+                                            max="14" oninput="calculateRocketPrice()" required>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Nama Group Customer -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Nama Utama Group Customer</label>
                             <input type="text" name="customer_name" class="form-control text-uppercase"
                                 placeholder="Contoh: GALAXY MIX COMBO" required>
                         </div>
 
-                        <!-- Pilih Durasi Paket Combo / Sejam Dua Jam -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Pilih Paket Billing</label>
-                            <select name="duration" class="form-select text-dark fw-bold" required>
+                            <select id="rocket-billing-selector" name="duration" class="form-select text-dark fw-bold"
+                                onchange="handleRocketBillingSelection()" required>
                                 <option value="" disabled selected>-- Pilih Durasi/Paket --</option>
                                 <optgroup label="Custom">
-                                    <option value="personal">Personal (Open Time)</option>
-                                    <option value="60">Main Paket 1 Jam</option>
-                                    <option value="120">Main Paket 2 Jam</option>
+                                    <option value="manual" data-type="manual">Per Jam (Input Manual)</option>
+                                    <option value="personal" data-type="personal">Personal (Open Time)</option>
                                 </optgroup>
                                 <optgroup label="Paket Promo Master">
                                     @foreach ($packages as $package)
-                                        <option value="{{ $package->duration_value }}">
+                                        <option value="{{ $package->duration_value }}" data-type="package"
+                                            data-price="{{ $package->price }}">
                                             {{ $package->name }} (Rp {{ number_format($package->price, 0, ',', '.') }})
                                         </option>
                                     @endforeach
                                 </optgroup>
                             </select>
+                        </div>
+
+                        <div id="rocket-manual-duration-container" class="mb-3 d-none">
+                            <label class="form-label">Masukkan Durasi (Jam)</label>
+                            <div class="input-group">
+                                <input type="number" id="rocket-input-hours" name="manual_hours" class="form-control"
+                                    value="1" min="1" oninput="calculateRocketPrice()">
+                                <span class="input-group-text">Jam</span>
+                            </div>
+                        </div>
+
+                        <div class="card bg-danger-lt p-3 text-center border-1 border-danger">
+                            <div class="text-uppercase small fw-bold text-danger">Estimasi Tarif Billing</div>
+                            <div class="h2 m-0 font-weight-bold text-danger">Rp <span id="rocket-display-harga">0</span>
+                                <span class="h4 text-muted">/ Meja</span>
+                            </div>
+                            <small id="rocket-summary-meja" class="text-muted mt-1 fw-bold" style="font-size: 0.75rem;">
+                                *Akan mengaktifkan 0 meja sekaligus secara mandiri.
+                            </small>
                         </div>
                     </div>
                     <div class="modal-footer bg-light">
@@ -509,94 +554,171 @@
             new bootstrap.Modal(document.getElementById('modal-open-table')).show();
         }
 
+        // =========================================================================
+        // PENGATURAN MODAL OPTION MEJA & EDIT NAMA CUSTOMER (UPDATED COMPLETE)
+        // =========================================================================
         function showOptionModal(id, number) {
-    window.currentSelectedTableId = id;
-    document.getElementById('option-no-meja').innerText = number;
-    document.getElementById('from-table-id').value = id;
+            window.currentSelectedTableId = id;
+            document.getElementById('option-no-meja').innerText = number;
+            document.getElementById('from-table-id').value = id;
 
-    const btnFnB = document.getElementById('btn-link-fnb');
-    if (btnFnB) {
-        btnFnB.href = `/admin/orderfnb?table_id=${id}`;
-    }
+            // Reset input nama dan ID transaksi aktif
+            document.getElementById('option-customer-name-input').value = "";
+            window.currentActiveTransactionId = null;
 
-    const tableBody = document.getElementById('fnb-table-body');
-    const txtTotalQty = document.getElementById('fnb-total-qty');
-    const txtTotalPrice = document.getElementById('fnb-total-price');
-    const txtBillingPrice = document.getElementById('billing-main-price');
-    const txtGrandTotal = document.getElementById('grand-total-bill');
-
-    tableBody.innerHTML = `<tr><td colspan="3" class="text-center py-3 text-muted">Memuat rincian pesanan...</td></tr>`;
-    txtTotalQty.innerText = "0 Pcs";
-    txtTotalPrice.innerText = "Rp 0";
-    txtBillingPrice.innerText = "Rp 0";
-    txtGrandTotal.innerText = "Rp 0";
-
-    // Memanggil API dengan ID Meja murni dari database
-    fetch(`/admin/billing/active-detail/${id}`)
-        .then(res => {
-            if (!res.ok) {
-                throw new Error('Server Return Error 500/404');
+            const btnFnB = document.getElementById('btn-link-fnb');
+            if (btnFnB) {
+                btnFnB.href = `/admin/orderfnb?table_id=${id}`;
             }
-            return res.json();
-        })
-        .then(data => {
-            if (data.success && data.fnb_orders.length > 0) {
-                let htmlRows = '';
-                let totalQty = 0;
-                let totalFnbPrice = 0;
 
-                data.fnb_orders.forEach(item => {
-                    totalQty += item.qty;
-                    totalFnbPrice += item.subtotal;
+            const tableBody = document.getElementById('fnb-table-body');
+            const txtTotalQty = document.getElementById('fnb-total-qty');
+            const txtTotalPrice = document.getElementById('fnb-total-price');
+            const txtBillingPrice = document.getElementById('billing-main-price');
+            const txtGrandTotal = document.getElementById('grand-total-bill');
 
-                    htmlRows += `
-                        <tr class="fw-bold text-dark">
-                            <td>
-                                <div>${item.product_name}</div>
-                                <div class="text-muted small" style="font-size: 0.75rem;">
-                                    Rp ${parseInt(item.price).toLocaleString('id-ID')} × ${item.qty}
-                                </div>
-                            </td>
-                            <td class="text-center valign-middle pt-3">
-                                <span class="badge bg-azure-lt fw-bold">${item.qty} Pcs</span>
-                            </td>
-                            <td class="text-end text-monospace valign-middle pt-3">
-                                Rp ${parseInt(item.subtotal).toLocaleString('id-ID')}
-                            </td>
-                        </tr>
-                    `;
+            tableBody.innerHTML =
+                `<tr><td colspan="3" class="text-center py-3 text-muted">Memuat rincian pesanan...</td></tr>`;
+            txtTotalQty.innerText = "0 Pcs";
+            txtTotalPrice.innerText = "Rp 0";
+            txtBillingPrice.innerText = "Rp 0";
+            txtGrandTotal.innerText = "Rp 0";
+
+            // Memanggil API detail transaksi aktif
+            fetch(`/admin/billing/active-detail/${id}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Server Return Error');
+                    return res.json();
+                })
+                .then(data => {
+                    // Masukkan nama customer dan ID Transaksi dari database ke Invoice Header
+                    if (data.success) {
+                        document.getElementById('option-customer-name-input').value = data.customer_name || 'GUEST';
+                        window.currentActiveTransactionId = data.transaction_id;
+                    }
+
+                    if (data.success && data.fnb_orders.length > 0) {
+                        let htmlRows = '';
+                        let totalQty = 0;
+                        let totalFnbPrice = 0;
+
+                        data.fnb_orders.forEach(item => {
+                            totalQty += item.qty;
+                            totalFnbPrice += item.subtotal;
+
+                            htmlRows += `
+                                <tr class="fw-bold text-dark">
+                                    <td>
+                                        <div>${item.product_name}</div>
+                                        <div class="text-muted small" style="font-size: 0.75rem;">
+                                            Rp ${parseInt(item.price).toLocaleString('id-ID')} × ${item.qty}
+                                        </div>
+                                    </td>
+                                    <td class="text-center valign-middle pt-3">
+                                        <span class="badge bg-azure-lt fw-bold">${item.qty} Pcs</span>
+                                    </td>
+                                    <td class="text-end text-monospace valign-middle pt-3">
+                                        Rp ${parseInt(item.subtotal).toLocaleString('id-ID')}
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        tableBody.innerHTML = htmlRows;
+                        txtTotalQty.innerText = `${totalQty} Pcs`;
+                        txtTotalPrice.innerText = `Rp ${totalFnbPrice.toLocaleString('id-ID')}`;
+
+                        let billingPrice = parseInt(data.billing_price) || 0;
+                        txtBillingPrice.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
+
+                        let grandTotal = totalFnbPrice + billingPrice;
+                        txtGrandTotal.innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
+
+                    } else {
+                        tableBody.innerHTML = `
+                            <tr>
+                                <td colspan="3" class="text-center py-3 text-muted italic">
+                                    Tidak ada pesanan FnB (Belum Lunas) di meja ini.
+                                </td>
+                            </tr>
+                        `;
+                        let billingPrice = data.billing_price ? parseInt(data.billing_price) : 0;
+                        txtBillingPrice.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
+                        txtGrandTotal.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
+                    }
+                })
+                .catch(err => {
+                    tableBody.innerHTML =
+                        `<tr><td colspan="3" class="text-center text-danger py-3">Gagal memuat rincian data pesanan.</td></tr>`;
+                    console.error("Terjadi error Fetch:", err);
                 });
 
-                tableBody.innerHTML = htmlRows;
-                txtTotalQty.innerText = `${totalQty} Pcs`;
-                txtTotalPrice.innerText = `Rp ${totalFnbPrice.toLocaleString('id-ID')}`;
+            new bootstrap.Modal(document.getElementById('modal-option-table')).show();
+        }
 
-                let billingPrice = parseInt(data.billing_price) || 0;
-                txtBillingPrice.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
+        function updateCustomerNameDirectly() {
+            const transactionId = window.currentActiveTransactionId;
+            const newName = document.getElementById('option-customer-name-input').value.trim();
 
-                let grandTotal = totalFnbPrice + billingPrice;
-                txtGrandTotal.innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
-
-            } else {
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="3" class="text-center py-3 text-muted italic">
-                            Tidak ada pesanan FnB (Belum Lunas) di meja ini.
-                        </td>
-                    </tr>
-                `;
-                let billingPrice = data.billing_price ? parseInt(data.billing_price) : 0;
-                txtBillingPrice.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
-                txtGrandTotal.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
+            if (!transactionId) {
+                Swal.fire('Gagal!', 'Tidak ada transaksi aktif yang dapat diubah namanya pada meja ini.', 'error');
+                return;
             }
-        })
-        .catch(err => {
-            tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-3">Gagal memuat rincian data pesanan.</td></tr>`;
-            console.error("Terjadi error Fetch:", err);
-        });
 
-    new bootstrap.Modal(document.getElementById('modal-option-table')).show();
-}
+            if (newName === "") {
+                Swal.fire('Peringatan!', 'Nama customer tidak boleh dikosongkan.', 'warning');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Memperbarui Nama...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch(`/admin/billing/update-customer-name`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Menggunakan cara alternatif penulisan CSRF Token bawaan Laravel yang jauh lebih aman
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        transaction_id: transactionId,
+                        customer_name: newName
+                    })
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error('Network response was not ok');
+                    return res.json();
+                })
+                .then(data => {
+                    Swal.close();
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: 'Nama customer berhasil diubah.',
+                            timer: 1000,
+                            showConfirmButton: false
+                        });
+
+                        // Supaya grid warna/nama meja di dashboard berubah secara real-time
+                        if (typeof getTablesStatus === "function") {
+                            getTablesStatus();
+                        }
+                    } else {
+                        Swal.fire('Gagal!', data.message || 'Gagal mengubah nama.', 'error');
+                    }
+                })
+                .catch(err => {
+                    Swal.close();
+                    console.error(err);
+                    Swal.fire('Sistem Error!', 'Gagal menghubungi server.', 'error');
+                });
+        }
 
         function showMoveModal() {
             bootstrap.Modal.getInstance(document.getElementById('modal-option-table')).hide();
@@ -644,6 +766,59 @@
             } else if (type === 'package') {
                 const price = selectedOption.getAttribute('data-price');
                 document.getElementById('display-harga').innerText = parseInt(price).toLocaleString('id-ID');
+            }
+        }
+
+        function handleRocketBillingSelection() {
+            const selector = document.getElementById('rocket-billing-selector');
+            const selectedOption = selector.options[selector.selectedIndex];
+            const type = selectedOption.getAttribute('data-type');
+            const manualContainer = document.getElementById('rocket-manual-duration-container');
+
+            // Reset tampilan input jam manual
+            manualContainer.classList.add('d-none');
+
+            if (type === 'manual') {
+                manualContainer.classList.remove('d-none');
+                calculateRocketPrice();
+            } else if (type === 'personal') {
+                document.getElementById('rocket-display-harga').innerText = "Berjalan...";
+            } else if (type === 'package') {
+                calculateRocketPrice();
+            }
+        }
+
+        function calculateRocketPrice() {
+            const selector = document.getElementById('rocket-billing-selector');
+            if (selector.selectedIndex === -1) return;
+
+            const selectedOption = selector.options[selector.selectedIndex];
+            const type = selectedOption.getAttribute('data-type');
+            const priceAttr = selectedOption.getAttribute('data-price');
+            const displayHarga = document.getElementById('rocket-display-harga');
+            const summaryMeja = document.getElementById('rocket-summary-meja');
+
+            // Hitung jangkauan nomor meja untuk info kasir
+            const startTable = parseInt(document.getElementById('rocket-start-table').value) || 1;
+            const endTable = parseInt(document.getElementById('rocket-end-table').value) || 1;
+
+            let totalMejaTerpilih = (endTable - startTable) + 1;
+            if (totalMejaTerpilih <= 0) totalMejaTerpilih = 0;
+
+            // Tampilkan informasi jumlah meja yang akan ditembak
+            summaryMeja.innerText = `*Akan mengaktifkan ${totalMejaTerpilih} meja sekaligus secara mandiri.`;
+
+            // Tampilkan harga per satu meja saja sesuai fakta lapangan
+            if (type === 'package') {
+                let hargaPerMeja = parseInt(priceAttr) || 0;
+                displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
+            } else if (type === 'manual') {
+                const hours = parseInt(document.getElementById('rocket-input-hours').value) || 1;
+                const pricePerHour = 50000; // Sesuai harga per jam andromeda biliar
+                let hargaPerMeja = hours * pricePerHour;
+                displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
+            } else if (type === 'personal') {
+                displayHarga.innerText = "Berjalan...";
             }
         }
 

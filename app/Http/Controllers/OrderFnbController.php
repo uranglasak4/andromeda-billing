@@ -11,27 +11,29 @@ use App\Models\FnbCategory; // Pastikan model kategori di-import jika ada
 class OrderFnbController extends Controller
 {
     public function index()
-    {
-        // 1. Ambil semua menu makanan beserta ID kategorinya
-        $products = FnbProduct::where('stock', '>', 0)->get();
+{
+    // 1. Ambil semua menu makanan beserta ID kategorinya
+    $products = FnbProduct::where('stock', '>', 0)->get();
 
-        // 2. Ambil semua kategori untuk tombol filter di atas
-        // Jika nama modelmu bukan FnbCategory, sesuaikan dengan nama model kategori di projectmu
-        $categories = \App\Models\FnbCategory::orderBy('name', 'asc')->get();
+    // 2. Ambil semua kategori untuk tombol filter di atas
+    $categories = \App\Models\FnbCategory::orderBy('name', 'asc')->get();
 
-        // 3. Ambil list transaksi meja yang sedang 'running'
-        $activeTransactions = Transaction::with('poolTable')
-            ->where('status', 'running')
-            ->get();
+    // 3. Ambil list transaksi meja yang sedang 'running' (URUT BERDASARKAN MEJA 1 - 14)
+    $activeTransactions = Transaction::with('poolTable')
+        ->join('pool_tables', 'transactions.pool_table_id', '=', 'pool_tables.id')
+        ->where('transactions.status', 'running')
+        ->select('transactions.*') // Pastikan hanya mengambil kolom milik transaksi agar ID tidak tertukar
+        ->orderBy(\DB::raw('CAST(pool_tables.table_number AS UNSIGNED)'), 'ASC')
+        ->get();
 
-        // 4. Ambil riwayat penjualan FnB
-        $recentOrders = OrderFnb::with('fnbProduct')
-            ->latest()
-            ->take(10)
-            ->get();
+    // 4. Ambil riwayat penjualan FnB
+    $recentOrders = OrderFnb::with('fnbProduct')
+        ->latest()
+        ->take(10)
+        ->get();
 
-        return view('admin.orderfnb', compact('products', 'categories', 'activeTransactions', 'recentOrders'));
-    }
+    return view('admin.orderfnb', compact('products', 'categories', 'activeTransactions', 'recentOrders'));
+}
 
     public function store(Request $request)
 {
