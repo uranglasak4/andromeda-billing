@@ -55,7 +55,7 @@
                         <div class="modal modal-blur fade" id="modal-edit-{{ $rule->id }}" tabindex="-1" role="dialog" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered" role="document">
                                 <div class="modal-content">
-                                    <form action="{{ route('master.pricing.update', $rule->id) }}" method="POST">
+                                    <form action="{{ route('master.pricing.update', $rule->id) }}" method="POST" id="form-edit-rule-{{ $rule->id }}">
                                         @csrf
                                         <div class="modal-header">
                                             <h5 class="modal-title">Edit Harga: {{ $rule->name }}</h5>
@@ -64,7 +64,7 @@
                                         <div class="modal-body">
                                             <div class="mb-3">
                                                 <label class="form-label">Harga Per Jam (Rp)</label>
-                                                <input type="number" name="price_per_hour" class="form-control" value="{{ $rule->price_per_hour }}">
+                                                <input type="number" name="price" class="form-control" value="{{ $rule->price_per_hour }}">
                                             </div>
                                             <div class="mb-3">
                                                 <label class="form-label">Minimum Charge (Rp)</label>
@@ -329,30 +329,64 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // === FIX 1: LOGIKA UNTUK MODAL EDIT HARGA REGULER ===
+        const editRuleModal = document.getElementById('modal-edit-rule');
+        if (editRuleModal) {
+            editRuleModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+
+                // Mengambil data-attribute dari tombol asli Anda
+                const id = button.getAttribute('data-id');
+                const name = button.getAttribute('data-name');
+                const price = button.getAttribute('data-price');
+                const min = button.getAttribute('data-min');
+                const from = button.getAttribute('data-from');
+                const to = button.getAttribute('data-to');
+
+                // Mengubah action form agar menembak route update dengan ID yang tepat
+                const form = document.getElementById('form-edit-rule');
+                if (form) {
+                    form.action = `/master/pricing/update/${id}`;
+                }
+
+                // Memasukkan data ke dalam field input modal Anda
+                if(document.getElementById('edit-rule-name')) document.getElementById('edit-rule-name').value = name;
+                if(document.getElementById('edit-rule-price')) document.getElementById('edit-rule-price').value = price;
+                if(document.getElementById('edit-rule-min')) document.getElementById('edit-rule-min').value = min;
+                if(document.getElementById('edit-rule-start')) document.getElementById('edit-rule-start').value = from ? from.substring(0, 5) : '';
+                if(document.getElementById('edit-rule-end')) document.getElementById('edit-rule-end').value = to ? to.substring(0, 5) : '';
+            });
+        }
+
+        // === LOGIKA UNTUK MODAL EDIT PACKAGE (BAWAAN ASLI ANDA) ===
         const editPackageModal = document.getElementById('modal-edit-package');
-        editPackageModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
+        if (editPackageModal) {
+            editPackageModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
 
-            const id = button.getAttribute('data-id');
-            const name = button.getAttribute('data-name');
-            const price = button.getAttribute('data-price');
-            const dayType = button.getAttribute('data-daytype');
-            const from = button.getAttribute('data-from');
-            const to = button.getAttribute('data-to');
-            const durType = button.getAttribute('data-durtype');
-            const durVal = button.getAttribute('data-durval');
+                const id = button.getAttribute('data-id');
+                const name = button.getAttribute('data-name');
+                const price = button.getAttribute('data-price');
+                const dayType = button.getAttribute('data-daytype');
+                const from = button.getAttribute('data-from');
+                const to = button.getAttribute('data-to');
+                const durType = button.getAttribute('data-durtype');
+                const durVal = button.getAttribute('data-durval');
 
-            const form = document.getElementById('form-edit-package');
-            form.action = `/master/packages/update/${id}`;
+                const form = document.getElementById('form-edit-package');
+                if (form) {
+                    form.action = `/master/packages/update/${id}`;
+                }
 
-            document.getElementById('edit-pkg-name').value = name;
-            document.getElementById('edit-pkg-price').value = price;
-            document.getElementById('edit-pkg-daytype').value = dayType;
-            document.getElementById('edit-pkg-from').value = from.substring(0,5);
-            document.getElementById('edit-pkg-to').value = to.substring(0,5);
-            document.getElementById('edit-pkg-durtype').value = durType;
-            document.getElementById('edit-pkg-durval').value = durVal;
-        });
+                document.getElementById('edit-pkg-name').value = name;
+                document.getElementById('edit-pkg-price').value = price;
+                document.getElementById('edit-pkg-daytype').value = dayType;
+                document.getElementById('edit-pkg-from').value = from ? from.substring(0, 5) : '';
+                document.getElementById('edit-pkg-to').value = to ? to.substring(0, 5) : '';
+                document.getElementById('edit-pkg-durtype').value = durType;
+                document.getElementById('edit-pkg-durval').value = durVal;
+            });
+        }
     });
 </script>
 @endsection

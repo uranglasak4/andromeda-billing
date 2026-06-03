@@ -46,14 +46,39 @@ class MasterController extends Controller
     }
 
     public function pricingUpdate(Request $request, $id)
-    {
+{
+    // 1. Validasi input yang masuk dari form modal Anda
+    $request->validate([
+        'price'       => 'required|integer|min:0',
+        'min_charge'  => 'required|integer|min:0',
+        'start_time'  => 'required',
+        'end_time'    => 'required',
+        'active_days' => 'required|array', // Memastikan hari aktif dikirim berupa array
+    ]);
+
+    try {
         $rule = PricingRule::findOrFail($id);
+
+        // 2. Jembatan Krusial: Ubah Array [1, 2, 3] menjadi String "1,2,3" agar bisa masuk database
+        $activeDaysString = implode(',', $request->active_days);
+
+        // 3. Update data langsung ke kolom database Anda masing-masing
         $rule->update([
-            'price_per_hour' => $request->price_per_hour
+            'price_per_hour' => $request->price,      // Menyimpan input 'price' ke kolom 'price_per_hour'
+            'min_charge'     => $request->min_charge, // Menyimpan input 'min_charge'
+            'start_time'     => $request->start_time,
+            'end_time'       => $request->end_time,
+            'active_days'    => $activeDaysString,    // Menyimpan string hasil konversi implode
         ]);
 
-        return back()->with('success', 'Harga reguler berhasil diperbarui!');
+        // Kembali dengan notifikasi sukses
+        return redirect()->back()->with('success', 'Aturan harga reguler billing berhasil diperbarui!');
+
+    } catch (\Exception $e) {
+        // Jika ada kegagalan, tangkap pesan errornya agar terlihat jelas apa yang bermasalah
+        return redirect()->back()->with('error', 'Gagal memperbarui harga: ' . $e->getMessage());
     }
+}
 
     // --- MANAJEMEN FnB FIXED PAGINATION & DROPDOWN FILTER ---
     public function fnbIndex(Request $request)
