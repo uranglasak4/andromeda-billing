@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Admin Dashboard - Andromeda Billiard</title>
+    <title>@yield('title', 'Home') - Andromeda Billiard & Cafe</title>
 
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}?v={{ time() }}" />
     <link rel="shortcut icon" type="image/png" href="{{ asset('favicon.png') }}?v={{ time() }}" />

@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Andromeda Billiard - Live Monitor</title>
+    <title>Live Monitor - Andromeda Billiard & Cafe</title>
 
     <!-- Tabler Core CSS -->
     <link href="{{ asset('dist/css/tabler.min.css') }}" rel="stylesheet" />

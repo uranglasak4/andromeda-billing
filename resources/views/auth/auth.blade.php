@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>Login - Andromeda Billiard</title>
+    <title>Login - Andromeda Billiard & Cafe</title>
     <link href="{{ asset('dist/css/tabler.min.css') }}" rel="stylesheet"/>
     <link href="{{ asset('dist/css/demo.min.css') }}" rel="stylesheet"/>
   </head>
@@ -12,11 +12,11 @@
         <div class="text-center mb-4">
             <h1 class="navbar-brand navbar-brand-autodark">*ANDROMEDA BILLIARD.png</h1>
         </div>
-        
+
         <div class="card card-md">
           <div class="card-body">
             <h2 class="h2 text-center mb-4">Login Akun</h2>
-            
+
             @yield('content')
 
           </div>

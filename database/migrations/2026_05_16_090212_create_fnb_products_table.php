@@ -26,6 +26,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Matikan pengecekan foreign key sementara
+        Schema::disableForeignKeyConstraints();
+
         Schema::dropIfExists('fnb_products');
+
+        // Hidupkan kembali pengecekan foreign key
+        Schema::enableForeignKeyConstraints();
     }
 };

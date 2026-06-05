@@ -1,4 +1,5 @@
 @extends('layouts.nav')
+@section('title', 'Dashboard Admin')
 @section('content')
     <div class="page-body">
         <div class="container-xl">
@@ -734,18 +735,69 @@
         function calculatePrice() {
             const selector = document.getElementById('billing-selector');
             const selectedOption = selector.options[selector.selectedIndex];
-            const displayHarga = document.getElementById('display-harga');
-
             const type = selectedOption.getAttribute('data-type');
-            const price = selectedOption.getAttribute('data-price');
 
-            if (type === 'package') {
-                displayHarga.innerText = parseInt(price).toLocaleString('id-ID');
-            } else if (type === 'hourly') {
-                const duration = parseInt(selectedOption.value) / 60;
-                // Asumsi harga per jam 50.000, sesuaikan dengan PricingRule Anda
-                const totalPrice = duration * 50000;
-                displayHarga.innerText = totalPrice.toLocaleString('id-ID');
+            if (type === 'manual') {
+                const hours = parseFloat(document.getElementById('input-hours').value) || 0;
+
+                // 1. Ambil seluruh aturan harga dari database
+                const pricingRules = @json($pricingRules);
+
+                // 2. Ambil Waktu & Hari Kasir Aktif Saat Ini
+                const now = new Date();
+                const currentHour = now.getHours();
+                const currentMinute = now.getMinutes();
+                const dayIndex = now.getDay(); // 0 = Minggu, 1 = Senin, ..., 6 = Sabtu
+
+                // Konversi index hari JS (0-6) ke standar ISO Laravel (1=Senin, 7=Minggu)
+                const currentDayISO = dayIndex === 0 ? 7 : dayIndex;
+
+                // Hitung total menit berjalan dari jam 00:00 pagi
+                const totalCurrentMinutes = (currentHour * 60) + currentMinute;
+
+                // Tentukan harga fallback utama (Rp 29.000 jika benar-benar tidak ada yang cocok)
+                let pricePerHour = 29000;
+
+                // 3. Iterasi pencocokan aturan harga
+                for (let rule of pricingRules) {
+                    if (!rule.active_days || !rule.start_time || !rule.end_time) continue;
+
+                    // Bersihkan spasi dan jadikan array hari aktif
+                    const activeDays = rule.active_days.toString().replace(/\s/g, '').split(',');
+
+                    if (activeDays.includes(String(currentDayISO))) {
+                        // Perbaikan: Pisahkan string waktu dan pastikan hanya mengambil Jam dan Menit (mengabaikan detik jika ada)
+                        const startParts = rule.start_time.split(':');
+                        const endParts = rule.end_time.split(':');
+
+                        const startH = parseInt(startParts[0], 10);
+                        const startM = parseInt(startParts[1], 10);
+                        const endH = parseInt(endParts[0], 10);
+                        const endM = parseInt(endParts[1], 10);
+
+                        const startMinutes = (startH * 60) + startM;
+                        const endMinutes = (endH * 60) + endM;
+
+                        // Logika Aturan Waktu Melewati Tengah Malam (Contoh: 18:00:00 s.d 03:00:00)
+                        if (endMinutes < startMinutes) {
+                            if (totalCurrentMinutes >= startMinutes || totalCurrentMinutes < endMinutes) {
+                                pricePerHour = parseFloat(rule.price_per_hour);
+                                break;
+                            }
+                        }
+                        // Logika Aturan Waktu Normal di Hari yang Sama (Contoh: 08:00:00 s.d 17:00:00)
+                        else {
+                            if (totalCurrentMinutes >= startMinutes && totalCurrentMinutes <= endMinutes) {
+                                pricePerHour = parseFloat(rule.price_per_hour);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // 4. Kalkulasi total akhir harga
+                const totalPrice = hours * pricePerHour;
+                document.getElementById('display-harga').innerText = totalPrice.toLocaleString('id-ID');
             }
         }
 
@@ -822,17 +874,6 @@
             }
         }
 
-        function calculatePrice() {
-            const selector = document.getElementById('billing-selector');
-            const selectedOption = selector.options[selector.selectedIndex];
-            const type = selectedOption.getAttribute('data-type');
-
-            if (type === 'manual') {
-                const hours = document.getElementById('input-hours').value;
-                const pricePerHour = 50000; // Contoh harga per jam
-                document.getElementById('display-harga').innerText = (hours * pricePerHour).toLocaleString('id-ID');
-            }
-        }
 
         window.addEventListener('load', function() {
             @if (session('success'))
@@ -852,9 +893,14 @@
         });
 
         function showRocketModal() {
-            new bootstrap.Modal(document.getElementById('modal-rocket-billing')).show();
+            // Memastikan modal Bootstrap terpicu dengan aman
+            const rocketModalEl = document.getElementById('modal-rocket-billing');
+            if (rocketModalEl) {
+                const modal = new bootstrap.Modal(rocketModalEl);
+                modal.show();
+            } else {
+                console.error("Elemen modal-rocket-billing tidak ditemukan!");
+            }
         }
     </script>
-
-    <!-- sound -->
 @endsection

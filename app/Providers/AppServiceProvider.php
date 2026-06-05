@@ -21,14 +21,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Paginator tetap biarkan jika ada
-        if (class_exists(\Illuminate\Pagination\Paginator::class)) {
-            \Illuminate\Pagination\Paginator::useBootstrapFive();
+        // 1. Deteksi otomatis jika website sedang dibuka lewat link ngrok
+        if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            \URL::forceScheme('https');
         }
 
-        // PERBAIKAN: Menggunakan getHost() untuk mendeteksi domain Ngrok
-        if (str_contains(request()->getHost(), 'ngrok-free') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')) {
-            URL::forceScheme('https');
+        // 2. Paksa URL root Laravel mengikuti domain yang sedang aktif di browser secara dinamis
+        if (request()->server('HTTP_X_FORWARDED_HOST')) {
+            \URL::forceRootUrl('https://' . request()->server('HTTP_X_FORWARDED_HOST'));
         }
     }
 }

@@ -12,26 +12,65 @@ use Carbon\Carbon;
 class AdminController extends Controller
 {
     public function index()
-    {
-        // Ambil 14 meja, urutkan berdasarkan nomor meja
-        $tables = PoolTable::with(['transactions' => function($query) {
+{
+    // 1. Ambil 14 meja, urutkan berdasarkan nomor meja BESERTA TRANSAKSI AKTIFNYA (running)
+    // Ini sangat krusial agar nama customer dan FnB orderan bisa terbaca di modal dashboard!
+    $tables = PoolTable::with(['transactions' => function($query) {
         $query->where('status', 'running');
     }])->orderBy('table_number', 'asc')->get();
 
-        $currentWaitingCount = WaitingList::where('status', 'waiting')->count();
-
-        $pricingRules = PricingRule::all();
+    $currentWaitingCount = WaitingList::where('status', 'waiting')->count();
+    $pricingRules = PricingRule::all();
     $packages = Package::where('is_active', true)->get();
 
-        $waitingCustomers = WaitingList::where('status', 'waiting')
-                        ->whereDate('created_at', Carbon::today())
-                        ->orderBy('created_at', 'asc') // Pertama daftar di atas
-                        ->get();
+    $waitingCustomers = WaitingList::where('status', 'waiting')
+                    ->whereDate('created_at', Carbon::today())
+                    ->orderBy('created_at', 'asc')
+                    ->get();
 
-        $currentWaitingCount = $waitingCustomers->count();
+    // Re-assign count agar akurat sesuai data hari ini
+    $currentWaitingCount = $waitingCustomers->count();
 
-    return view('admin.dashboardadmin', compact('tables', 'currentWaitingCount', 'waitingCustomers', 'pricingRules', 'packages'));
+    // 2. --- LOGIKA DETEKSI HARGA OPERASIONAL (UNTUK DISPLAY INFO KASIR) ---
+    $now = now();
+    $currentTimeString = $now->format('H:i:s');
+    $currentDayOfWeek = $now->isoweekday(); // 1 (Senin) s/d 7 (Minggu)
+
+    // Skenario Dini Hari: Jam 00:00:00 s/d 03:00:00 masih ikut hari operasional kemarin
+    if ($currentTimeString >= '00:00:00' && $currentTimeString <= '03:00:00') {
+        $currentDayOfWeek = $currentDayOfWeek == 1 ? 7 : $currentDayOfWeek - 1;
     }
+
+    $currentRule = null;
+    foreach ($pricingRules as $rule) {
+        $activeDays = explode(',', str_replace(' ', '', $rule->active_days));
+
+        if (in_array($currentDayOfWeek, $activeDays)) {
+            $start = $rule->start_time;
+            $end = $rule->end_time;
+
+            if ($start > $end) { // Aturan Lewat Tengah Malam
+                if ($currentTimeString >= $start || $currentTimeString <= $end) {
+                    $currentRule = $rule;
+                    break;
+                }
+            } else { // Aturan Normal
+                if ($currentTimeString >= $start && $currentTimeString <= $end) {
+                    $currentRule = $rule;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Fallback aman jika rule tidak terdeteksi
+    if (!$currentRule) {
+        $currentRule = $pricingRules->where('day_type', 'weekday')->first();
+    }
+
+    // Kirimkan semua data ke view secara utuh dan aman
+    return view('admin.dashboardadmin', compact('tables', 'currentWaitingCount', 'waitingCustomers', 'pricingRules', 'packages', 'currentRule'));
+}
 
 public function getTablesStatus() {
     $now = now();

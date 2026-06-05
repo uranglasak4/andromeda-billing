@@ -1,5 +1,5 @@
 @extends('layouts.nav')
-
+@section('title', 'Waiting List')
 @section('content')
     <div class="container-xl mt-4">
 

@@ -1,4 +1,5 @@
 @extends('layouts.nav')
+@section('title', 'Pengaturan Waiting List')
 @section('content')
 
 <div class="container-xl mt-4">

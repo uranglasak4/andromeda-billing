@@ -25,18 +25,12 @@ class DatabaseSeeder extends Seeder
         // --- 1. SEED USERS ---
         // Buat user untuk login admin dan owner
         User::updateOrCreate([
-            'name' => 'Sajid',
-            'username' => 'sajid',
-            'password' => Hash::make('sajid'),
+            'name' => 'Wik',
+            'username' => 'wik',
+            'password' => Hash::make('wik'),
             'role' => 'master',
         ]);
 
-        User::updateOrCreate([
-            'name' => 'Admin',
-            'username' => 'admin',
-            'password' => Hash::make('admin'),
-            'role' => 'admin',
-        ]);
 
         User::updateOrCreate([
             'name' => 'Wok',
@@ -65,7 +59,7 @@ class DatabaseSeeder extends Seeder
                 'start' => '11:00:00',
                 'end' => '17:59:59',
                 'price' => 27000,
-                'active_days' => '1,2,3,4,5' // Senin sampai Jumat
+                'active_days' => '1,2,3,4'
             ],
             [
                 'name' => 'Night Weekday',
@@ -73,7 +67,7 @@ class DatabaseSeeder extends Seeder
                 'start' => '18:00:00',
                 'end' => '03:00:00',
                 'price' => 38000,
-                'active_days' => '1,2,3,4,5' // Senin sampai Jumat
+                'active_days' => '1,2,3,4'
             ],
             [
                 'name' => 'Day Weekend',
@@ -81,7 +75,7 @@ class DatabaseSeeder extends Seeder
                 'start' => '11:00:00',
                 'end' => '17:59:59',
                 'price' => 29000,
-                'active_days' => '6,7' // Sabtu dan Minggu
+                'active_days' => '5,6,7'
             ],
             [
                 'name' => 'Night Weekend',
@@ -89,7 +83,7 @@ class DatabaseSeeder extends Seeder
                 'start' => '18:00:00',
                 'end' => '03:00:00',
                 'price' => 43000,
-                'active_days' => '6,7' // Sabtu dan Minggu
+                'active_days' => '5,6,7'
             ],
         ];
 
