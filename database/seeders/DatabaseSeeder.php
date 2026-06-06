@@ -56,7 +56,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Day Weekday',
                 'day' => 'weekday',
-                'start' => '11:00:00',
+                'start' => '09:00:00',
                 'end' => '17:59:59',
                 'price' => 27000,
                 'active_days' => '1,2,3,4'
@@ -65,14 +65,14 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Night Weekday',
                 'day' => 'weekday',
                 'start' => '18:00:00',
-                'end' => '03:00:00',
+                'end' => '08:59:59',
                 'price' => 38000,
                 'active_days' => '1,2,3,4'
             ],
             [
                 'name' => 'Day Weekend',
                 'day' => 'weekend',
-                'start' => '11:00:00',
+                'start' => '09:00:00',
                 'end' => '17:59:59',
                 'price' => 29000,
                 'active_days' => '5,6,7'
@@ -81,7 +81,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Night Weekend',
                 'day' => 'weekend',
                 'start' => '18:00:00',
-                'end' => '03:00:00',
+                'end' => '08:59:59',
                 'price' => 43000,
                 'active_days' => '5,6,7'
             ],

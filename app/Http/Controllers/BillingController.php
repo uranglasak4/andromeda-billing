@@ -127,7 +127,7 @@ class BillingController extends Controller
 
         $table->update(['status' => 'available']);
 
-        return redirect()->route('admin.dashboard')->with('success', 'Meja ' . $table->table_number . ' berhasil di-close! Total: Rp ' . number_format($totalPrice, 0, ',', '.'));
+        return redirect()->route('admin.dashboard')->with('success', 'Meja ' . $table->table_number . ' berhasil diselesaikan! Total: Rp ' . number_format($totalPrice, 0, ',', '.'));
     }
 
 
@@ -185,52 +185,46 @@ class BillingController extends Controller
             ]);
         }
 
-        return back()->with('success', 'BOOM! Paket Massal Roket berhasil diaktifkan untuk ' . $tables->count() . ' meja sekaligus!');
+        return back()->with('success', 'BOOM! Billing Massal Roket dimulai untuk ' . $tables->count() . ' meja sekaligus!');
     }
 
     public function getActiveDetail($table_id)
 {
-    // 1. Cari transaksi running di meja tersebut menggunakan pool_table_id
     $transaction = \App\Models\Transaction::where('pool_table_id', $table_id)
                     ->where('status', 'running')
                     ->first();
 
     if (!$transaction) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Tidak ada transaksi aktif'
-        ]);
+        return response()->json(['success' => false, 'message' => 'Tidak ada transaksi aktif']);
     }
 
-    // 2. HITUNG HARGA BILLING SECARA REAL-TIME JIKA TRANSAKSI MASIH RUNNING
     $billingPrice = 0;
     $now = now();
     $startTime = \Carbon\Carbon::parse($transaction->start_time);
 
+    if ($transaction->billing_type === 'hourly' || $transaction->billing_type === 'personal') {
+
+    // ✅ Pakai rule SEKARANG, bukan rule saat meja dibuka
+    $rule = $this->findCurrentPricingRule();
+
+    $pricePerHour = $rule ? $rule->price_per_hour : 29000;
+    $minCharge    = $rule ? $rule->min_charge : 10000;
+
     if ($transaction->billing_type === 'hourly') {
-        $elapsedMinutes = $startTime->diffInMinutes($now);
-
-        // Mengambil rule pricing pertama, jika tidak ada gunakan default Rp 27.000 / jam
-        $pricing = \App\Models\PricingRule::first();
-        $pricePerHour = $pricing ? $pricing->price_per_hour : 27000;
-        $pricePerMinute = $pricePerHour / 60;
-
-        $billingPrice = round($elapsedMinutes * $pricePerMinute);
-
-        // Terapkan minimum charge jika ada
-        $minCharge = $pricing ? $pricing->min_charge : 10000;
-        if ($billingPrice < $minCharge) {
-            $billingPrice = $minCharge;
-        }
-    } elseif ($transaction->billing_type === 'package') {
-        // Jika paket, ambil harga flat dari relasi package atau total_price sementara
-        $billingPrice = $transaction->total_price ?? 0;
+        $durationMinutes = $transaction->duration ?? 60;
+        $calculated = ($durationMinutes / 60) * $pricePerHour;
     } else {
-        // Tipe personal / open time berjalan
-        $billingPrice = $transaction->total_price ?? 0;
+        // personal = elapsed real-time
+        $elapsedMinutes = Carbon::parse($transaction->start_time)->diffInMinutes(now());
+        $calculated = ($elapsedMinutes / 60) * $pricePerHour;
     }
 
-    // 3. Ambil order FnB yang belum lunas (unpaid) milik transaksi ini
+    $billingPrice = max($calculated, $minCharge);
+
+} elseif ($transaction->billing_type === 'package') {
+    $billingPrice = $transaction->total_price ?? 0;
+}
+
     $orders = $transaction->orderFnbs()
             ->with('fnbProduct')
             ->where('payment_status', 'unpaid')
@@ -238,19 +232,19 @@ class BillingController extends Controller
             ->map(function($order) {
                 return [
                     'product_name' => $order->fnbProduct->name ?? 'Menu FnB',
-                    'price'        => (int) ($order->price ?? 0), // Perbaikan: Hapus anisotropy_cast yang bikin crash
+                    'price'        => (int) ($order->price ?? 0),
                     'qty'          => (int) $order->qty,
                     'subtotal'     => (int) $order->subtotal
                 ];
             });
 
     return response()->json([
-        'success'       => true,
-        'transaction_id'=> $transaction->id,
-        'customer_name' => $transaction->customer_name,
-        'billing_price' => (int) $billingPrice,
-        'fnb_orders'    => $orders,
-        'total_fnb'     => (int) $orders->sum('subtotal')
+        'success'        => true,
+        'transaction_id' => $transaction->id,
+        'customer_name'  => $transaction->customer_name,
+        'billing_price'  => (int) $billingPrice,
+        'fnb_orders'     => $orders,
+        'total_fnb'      => (int) $orders->sum('subtotal')
     ]);
 }
 
@@ -278,6 +272,41 @@ class BillingController extends Controller
             ], 500);
         }
     }
+
+private function findCurrentPricingRule()
+{
+    $now = Carbon::now();
+    $currentTimeString = $now->format('H:i:s');
+    $currentDayOfWeek = $now->isoweekday();
+
+    // Skenario Dini Hari: 00:00 - 03:00 masih ikut hari operasional kemarin
+    if ($currentTimeString >= '00:00:00' && $currentTimeString <= '03:00:00') {
+        $currentDayOfWeek = $currentDayOfWeek == 1 ? 7 : $currentDayOfWeek - 1;
+    }
+
+    $rules = \App\Models\PricingRule::all();
+
+    foreach ($rules as $rule) {
+        $activeDays = explode(',', str_replace(' ', '', $rule->active_days));
+
+        if (in_array($currentDayOfWeek, $activeDays)) {
+            $start = $rule->start_time;
+            $end   = $rule->end_time;
+
+            if ($start > $end) { // Melewati tengah malam
+                if ($currentTimeString >= $start || $currentTimeString <= $end) {
+                    return $rule;
+                }
+            } else { // Normal
+                if ($currentTimeString >= $start && $currentTimeString <= $end) {
+                    return $rule;
+                }
+            }
+        }
+    }
+
+    return \App\Models\PricingRule::first();
+}
 
     private function findMatchingPricingRule($startTime)
     {

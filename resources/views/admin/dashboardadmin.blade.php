@@ -384,8 +384,8 @@
 
                         <div class="mb-3">
                             <label class="form-label fw-bold">Nama Utama Group Customer</label>
-                            <input type="text" name="customer_name" class="form-control text-uppercase"
-                                placeholder="Contoh: GALAXY MIX COMBO" required>
+                            <input type="text" name="customer_name" class="form-control"
+                                placeholder="Nama..." required>
                         </div>
 
                         <div class="mb-3">
@@ -841,38 +841,86 @@
         }
 
         function calculateRocketPrice() {
-            const selector = document.getElementById('rocket-billing-selector');
-            if (selector.selectedIndex === -1) return;
+    const selector = document.getElementById('rocket-billing-selector');
+    if (selector.selectedIndex === -1) return;
 
-            const selectedOption = selector.options[selector.selectedIndex];
-            const type = selectedOption.getAttribute('data-type');
-            const priceAttr = selectedOption.getAttribute('data-price');
-            const displayHarga = document.getElementById('rocket-display-harga');
-            const summaryMeja = document.getElementById('rocket-summary-meja');
+    const selectedOption = selector.options[selector.selectedIndex];
+    const type = selectedOption.getAttribute('data-type');
+    const priceAttr = selectedOption.getAttribute('data-price');
+    const displayHarga = document.getElementById('rocket-display-harga');
+    const summaryMeja = document.getElementById('rocket-summary-meja');
 
-            // Hitung jangkauan nomor meja untuk info kasir
-            const startTable = parseInt(document.getElementById('rocket-start-table').value) || 1;
-            const endTable = parseInt(document.getElementById('rocket-end-table').value) || 1;
+    // Hitung jangkauan nomor meja untuk info kasir
+    const startTable = parseInt(document.getElementById('rocket-start-table').value) || 1;
+    const endTable = parseInt(document.getElementById('rocket-end-table').value) || 1;
 
-            let totalMejaTerpilih = (endTable - startTable) + 1;
-            if (totalMejaTerpilih <= 0) totalMejaTerpilih = 0;
+    let totalMejaTerpilih = (endTable - startTable) + 1;
+    if (totalMejaTerpilih <= 0) totalMejaTerpilih = 0;
 
-            // Tampilkan informasi jumlah meja yang akan ditembak
-            summaryMeja.innerText = `*Akan mengaktifkan ${totalMejaTerpilih} meja sekaligus secara mandiri.`;
+    summaryMeja.innerText = `*Akan mengaktifkan ${totalMejaTerpilih} meja sekaligus secara mandiri.`;
 
-            // Tampilkan harga per satu meja saja sesuai fakta lapangan
-            if (type === 'package') {
-                let hargaPerMeja = parseInt(priceAttr) || 0;
-                displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
-            } else if (type === 'manual') {
-                const hours = parseInt(document.getElementById('rocket-input-hours').value) || 1;
-                const pricePerHour = 50000; // Sesuai harga per jam andromeda biliar
-                let hargaPerMeja = hours * pricePerHour;
-                displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
-            } else if (type === 'personal') {
-                displayHarga.innerText = "Berjalan...";
+    if (type === 'package') {
+        // Paket: harga flat dari data-price
+        let hargaPerMeja = parseInt(priceAttr) || 0;
+        displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
+
+    } else if (type === 'manual') {
+        const hours = parseFloat(document.getElementById('rocket-input-hours').value) || 0;
+
+        // ✅ SAMA PERSIS DENGAN calculatePrice() — Ambil pricing rules dari DB
+        const pricingRules = @json($pricingRules);
+
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const dayIndex = now.getDay(); // 0 = Minggu, 1 = Senin, ..., 6 = Sabtu
+
+        // Konversi ke standar ISO Laravel (1=Senin, 7=Minggu)
+        const currentDayISO = dayIndex === 0 ? 7 : dayIndex;
+
+        // Total menit dari jam 00:00
+        const totalCurrentMinutes = (currentHour * 60) + currentMinute;
+
+        // Fallback harga jika tidak ada rule yang cocok
+        let pricePerHour = 29000;
+
+        for (let rule of pricingRules) {
+            if (!rule.active_days || !rule.start_time || !rule.end_time) continue;
+
+            const activeDays = rule.active_days.toString().replace(/\s/g, '').split(',');
+
+            if (activeDays.includes(String(currentDayISO))) {
+                const startParts = rule.start_time.split(':');
+                const endParts = rule.end_time.split(':');
+
+                const startMinutes = (parseInt(startParts[0], 10) * 60) + parseInt(startParts[1], 10);
+                const endMinutes   = (parseInt(endParts[0], 10)   * 60) + parseInt(endParts[1], 10);
+
+                // Aturan melewati tengah malam (contoh: 18:00 s.d 03:00)
+                if (endMinutes < startMinutes) {
+                    if (totalCurrentMinutes >= startMinutes || totalCurrentMinutes < endMinutes) {
+                        pricePerHour = parseFloat(rule.price_per_hour);
+                        break;
+                    }
+                }
+                // Aturan normal (contoh: 08:00 s.d 17:00)
+                else {
+                    if (totalCurrentMinutes >= startMinutes && totalCurrentMinutes <= endMinutes) {
+                        pricePerHour = parseFloat(rule.price_per_hour);
+                        break;
+                    }
+                }
             }
         }
+
+        // Harga per meja = jam × harga/jam dinamis
+        let hargaPerMeja = hours * pricePerHour;
+        displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
+
+    } else if (type === 'personal') {
+        displayHarga.innerText = "Berjalan...";
+    }
+}
 
 
         window.addEventListener('load', function() {
