@@ -13,6 +13,7 @@
     <!-- Font Digital Countdown -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 
+
     <style>
         /* Desain khusus font countdown agar mirip jam digital */
         .font-countdown {
@@ -41,5 +42,6 @@
     <!-- Tabler Core JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('dist/js/tabler.min.js') }}"></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </body>
 </html>

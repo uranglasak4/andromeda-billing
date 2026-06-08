@@ -22,7 +22,7 @@ class WaitingListController extends Controller
             ->get();
 
         foreach ($expiredQueues as $queue) {
-            if (Carbon::parse($queue->created_at)->addMinutes((int)$limitMinutes)->isPast()) {
+            if (Carbon::parse($queue->created_at)->addMinutes((int) $limitMinutes)->isPast()) {
                 $queue->update(['status' => 'expired']);
             }
         }
@@ -64,14 +64,14 @@ class WaitingListController extends Controller
             // -------------------------------------------------------
             $request->validate([
                 'nama_pelanggan' => 'required|string|max:25',
-                'nomor_wa'       => 'nullable|numeric',
+                'nomor_wa' => 'nullable|numeric',
             ]); //[cite: 19]
 
             WaitingList::create([
                 'customer_name' => strtoupper($request->nama_pelanggan),
-                'phone_number'  => $request->nomor_wa ?? '-',
-                'tipe'          => 'onsite',
-                'status'        => 'waiting', // Langsung masuk antrean aktif
+                'phone_number' => $request->nomor_wa ?? '-',
+                'tipe' => 'onsite',
+                'status' => 'waiting', // Langsung masuk antrean aktif
             ]); //[cite: 19]
 
             // Kirim WA jika kasir menginput nomor WhatsApp
@@ -88,16 +88,27 @@ class WaitingListController extends Controller
             // -------------------------------------------------------
             $request->validate([
                 'nama_pelanggan' => 'required|string|max:25',
-                'nomor_wa'       => 'required|numeric',
+                'nomor_wa' => 'required|numeric',
             ]); //[cite: 19]
 
+            $nomor = preg_replace('/\D/', '', $request->nomor_wa); // hapus non-angka
+
+            // Panjang nomor WA Indonesia: 9-13 digit (tanpa kode negara)
+            if (strlen($nomor) < 9 || strlen($nomor) > 13) {
+                return redirect()->back()->with('invalid_wa', 'Nomor WhatsApp tidak valid! Masukkan nomor yang benar (tanpa +62).');
+            }
+
+            // Pastikan diawali 8 (standar nomor HP Indonesia)
+            if (substr($nomor, 0, 1) !== '8') {
+                return redirect()->back()->with('invalid_wa', 'Nomor WhatsApp harus diawali angka 8. Contoh: 81234567890');
+            }
             // Cek kuota online[cite: 19]
             $maxOnlineQueue = Setting::where('key', 'max_online_queue')->value('value') ?? 15; //[cite: 19]
             $currentOnlineCount = WaitingList::where('tipe', 'online')
                 ->where('status', 'not_verified')
                 ->count();
 
-            if ($currentOnlineCount >= (int)$maxOnlineQueue) {
+            if ($currentOnlineCount >= (int) $maxOnlineQueue) {
                 return redirect()->back()->with('error', 'Maaf, kuota antrean online kami sedang penuh!'); //[cite: 19]
             }
 
@@ -106,10 +117,10 @@ class WaitingListController extends Controller
 
             WaitingList::create([
                 'customer_name' => strtoupper($request->nama_pelanggan),
-                'phone_number'  => $request->nomor_wa,
-                'tipe'          => 'online',
-                'status'        => 'not_verified', // Belum verifikasi
-                'otp'           => $otpCode, //[cite: 19]
+                'phone_number' => $request->nomor_wa,
+                'tipe' => 'online',
+                'status' => 'not_verified', // Belum verifikasi
+                'otp' => $otpCode, //[cite: 19]
             ]);
 
             $pesanWA = "Halo " . strtoupper($request->nama_pelanggan) . ",\n\nPendaftaran antrean ONLINE WEB BERHASIL! 🎉\n\n📌 Nomor Urut Anda: #" . $nextQueueNo . "\n🔐 Kode OTP Verifikasi: " . $otpCode . "\n\n⚠️ Silakan ke kasir untuk melakukan verifikasi dalam waktu maksimal " . $limitMinutes . " menit dari sekarang sebelum antrean Anda kedaluwarsa (Expired). Terima kasih."; //[cite: 19]
@@ -142,7 +153,9 @@ class WaitingListController extends Controller
 
         if (!empty($queue->phone_number) && $queue->phone_number !== '-') {
             $formattedPhone = $queue->phone_number;
-            if (substr($formattedPhone, 0, 1) === '0') { $formattedPhone = '62' . substr($formattedPhone, 1); }
+            if (substr($formattedPhone, 0, 1) === '0') {
+                $formattedPhone = '62' . substr($formattedPhone, 1);
+            }
 
             $pesanWA = "📢 PANGGILAN ANTREAN!\n\nHalo " . $queue->customer_name . ",\n\nSudah giliran Anda untuk bermain! 🎱 Silahkan segera menuju ke meja kasir Andromeda Billiard untuk memilih meja yang tersedia. Terima kasih.";
             $this->kirimWA($formattedPhone, $pesanWA, env('FONNTE_TOKEN'));
@@ -163,8 +176,10 @@ class WaitingListController extends Controller
     }
 
     // Fungsi Pembantu Pengiriman API Fonnte[cite: 19]
-    private function kirimWA($target, $message, $token) {
-        if(!$target || $target === '-') return;
+    private function kirimWA($target, $message, $token)
+    {
+        if (!$target || $target === '-')
+            return;
         Http::withHeaders(['Authorization' => $token])->asForm()->post('https://api.fonnte.com/send', [
             'target' => $target,
             'message' => $message

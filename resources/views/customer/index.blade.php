@@ -30,6 +30,20 @@
         </script>
     @endif
 
+    @if (session('duplicate_wa'))
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    title: 'Nomor Sudah Terdaftar! ⚠️',
+                    text: "{{ session('duplicate_wa') }}",
+                    icon: 'warning',
+                    confirmButtonColor: '#f0a30a',
+                    confirmButtonText: 'Ganti Nomor Lain'
+                });
+            });
+        </script>
+    @endif
+
     <!-- HEADER MONITOR -->
     <div class="row align-items-center mb-3 border-bottom pb-2">
         <div class="col">
@@ -97,7 +111,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>
-                <form action="{{ route('customer.waiting-list.store') }}" method="POST">
+                <form action="{{ route('customer.waiting-list.store') }}" method="POST" id="form-waiting-list">
                     @csrf
                     <div class="modal-body py-3">
                         <div class="mb-3">
@@ -105,7 +119,7 @@
                             <input type="text" class="form-control text-uppercase" name="nama_pelanggan"
                                 placeholder="CONTOH: BUDI / FAJAR CS" required autocomplete="off">
                         </div>
-                        <div class="mb-2">
+                        <div class="mb-3">
                             <label class="form-label fw-bold text-dark">Nomor WhatsApp Aktif</label>
                             <div class="input-group input-group-flat">
                                 <span class="input-group-text bg-light text-muted fw-bold">+62</span>
@@ -117,11 +131,20 @@
                                 atas.
                             </small>
                         </div>
+
+                        {{-- ✅ CLOUDFLARE TURNSTILE WIDGET --}}
+                        <div class="mb-2 d-flex justify-content-center">
+                            <div class="cf-turnstile" data-sitekey="{{ env('TURNSTILE_SITE_KEY') }}" data-theme="light"
+                                data-language="id">
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-link link-secondary fw-bold"
                             data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-success fw-bold px-4">Ambil Antrean Now</button>
+                        <button type="submit" class="btn btn-success fw-bold px-4" onclick="return validateTurnstile()">
+                            Ambil Antrean Now
+                        </button>
                     </div>
                 </form>
             </div>
@@ -165,7 +188,8 @@
                     let tableGridHTML = '';
 
                     // Hitung jumlah antrean online aktif saat ini
-                    currentOnlineCount = waitingList.filter(guest => guest.tipe === 'online' && (guest.status === 'waiting' || guest.status === 'not_verified')).length;
+                    currentOnlineCount = waitingList.filter(guest => guest.tipe === 'online' && (guest.status ===
+                        'waiting' || guest.status === 'not_verified')).length;
 
                     tables.forEach(table => {
                         let bgClass = 'bg-available';
@@ -305,6 +329,29 @@
                 myModal.show();
             }
         }
+
+        // ✅ VALIDASI TURNSTILE SEBELUM FORM SUBMIT
+        function validateTurnstile() {
+            const token = document.querySelector('[name="cf-turnstile-response"]');
+            if (!token || !token.value) {
+                Swal.fire({
+                    title: 'Verifikasi Diperlukan!',
+                    text: 'Mohon selesaikan verifikasi "Saya bukan robot" terlebih dahulu.',
+                    icon: 'warning',
+                    confirmButtonColor: '#f0a30a',
+                    confirmButtonText: 'Oke'
+                });
+                return false;
+            }
+            return true;
+        }
+
+        // Reset Turnstile widget setiap kali modal dibuka agar tidak stale
+        document.getElementById('modal-waiting-list').addEventListener('show.bs.modal', function() {
+            if (typeof turnstile !== 'undefined') {
+                turnstile.reset();
+            }
+        });
 
         fetchLiveMonitorData();
         setInterval(fetchLiveMonitorData, 1000);
