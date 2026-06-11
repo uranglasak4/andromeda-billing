@@ -920,9 +920,11 @@
                 displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
 
             } else if (type === 'personal') {
-                displayHarga.innerText = "Berjalan...";
+                const minCharge = {{ $currentRule?->min_charge ?? 10000 }};
+                displayHarga.innerText = minCharge.toLocaleString('id-ID');
             }
         }
+
 
 
         window.addEventListener('load', function() {

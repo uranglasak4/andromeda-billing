@@ -116,8 +116,8 @@
                     <div class="modal-body py-3">
                         <div class="mb-3">
                             <label class="form-label fw-bold text-dark">Nama Anda / Nama Tim</label>
-                            <input type="text" class="form-control text-uppercase" name="nama_pelanggan"
-                                placeholder="CONTOH: BUDI / FAJAR CS" required autocomplete="off">
+                            <input type="text" class="form-control" name="nama_pelanggan"
+                                placeholder="CONTOH: Budi / Fajar CS" required autocomplete="off">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold text-dark">Nomor WhatsApp Aktif</label>

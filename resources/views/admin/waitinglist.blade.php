@@ -62,7 +62,6 @@
             <div class="col-12 mt-3">
                 <div class="card shadow-sm border-0">
 
-                    <!-- HEADER NAV TAB UNTUK FILTER -->
                     <!-- HEADER NAV TAB UNTUK FILTER (UPDATED) -->
                     <div class="card-header p-0 border-bottom">
                         <ul class="nav nav-tabs card-header-tabs m-0" data-bs-toggle="tabs" role="tablist">

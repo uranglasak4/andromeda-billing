@@ -1,19 +1,6 @@
 @extends('layouts.nav')
 @section('title', 'Dashboard Master')
 @section('content')
-    <div class="page-header d-print-none">
-        <div class="container-xl">
-            <div class="row g-2 align-items-center">
-                <div class="col">
-                    <h2 class="page-title">
-                        Master Control Panel
-                    </h2>
-                    <p class="text-muted">Ringkasan operasional Andromeda Billiard hari ini.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="page-body">
         <div class="container-xl">
             <div class="row row-cards mb-4">

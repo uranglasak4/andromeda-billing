@@ -196,11 +196,15 @@ class MasterController extends Controller
 
     public function waitingListSetting()
 {
-    // Ambil nilai yang ada di database saat ini
-    $verificationTime = Setting::where('key', 'verification_time')->value('value') ?? 20;
-    $maxOnlineQueue = Setting::where('key', 'max_online_queue')->value('value') ?? 15;
+    $verificationTime = Setting::where('key', 'verification_time')->value('value') ?? 15;
+    $maxOnlineQueue = Setting::where('key', 'max_online_queue')->value('value') ?? 10;
 
-    return view('master.wlsetting', compact('verificationTime', 'maxOnlineQueue'));
+    // ✅ Tambahkan ini agar tab waiting list bisa tampil
+    $waitingLists = \App\Models\WaitingList::whereDate('created_at', \Carbon\Carbon::today())
+        ->orderBy('created_at', 'asc')
+        ->get();
+
+    return view('master.wlsetting', compact('verificationTime', 'maxOnlineQueue', 'waitingLists'));
 }
 
 // Fungsi menyimpan/mengupdate konfigurasi dari form Master

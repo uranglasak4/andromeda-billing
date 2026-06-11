@@ -1,18 +1,6 @@
 @extends('layouts.nav')
 @section('title', 'Manajemen Akun')
 @section('content')
-    <div class="page-header d-print-none">
-        <div class="container-xl">
-            <div class="row g-2 align-items-center">
-                <div class="col">
-                    <h2 class="page-title">
-                        Manajemen Akun Pengguna (Staff / Kasir)
-                    </h2>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="page-body">
         <div class="container-xl">
             @if (session('success'))

@@ -125,5 +125,14 @@ class DatabaseSeeder extends Seeder
         $this->call([
             FnbSeeder::class,
         ]);
+
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'verification_time'],
+            ['value' => 15] // Default 15 menit
+        );
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'max_online_queue'],
+            ['value' => 10] // Default 10 customer
+        );
     }
 }
