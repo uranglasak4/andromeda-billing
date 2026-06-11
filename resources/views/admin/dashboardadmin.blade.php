@@ -915,6 +915,9 @@
             // Hitung total untuk semua meja yang dipilih
             totalHarga = hargaPerMeja * totalMejaTerpilih;
 
+            // Debug: log nilai penting ke console
+            console.log('calculateRocketPrice', { type, startTable, endTable, totalMejaTerpilih, hargaPerMeja, totalHarga });
+
             // Tampilkan: per meja dan total di summary
             if (displayHarga) displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
             if (summaryMeja) summaryMeja.innerText = `*Akan mengaktifkan ${totalMejaTerpilih} meja sekaligus secara mandiri. Total: Rp ${totalHarga.toLocaleString('id-ID')}`;
