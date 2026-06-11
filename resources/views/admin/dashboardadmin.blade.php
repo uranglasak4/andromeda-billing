@@ -948,6 +948,18 @@
             if (rocketModalEl) {
                 const modal = new bootstrap.Modal(rocketModalEl);
                 modal.show();
+
+                // Pastikan tampilan harga ter-update segera saat modal dibuka
+                // (tidak perlu admin mengubah input meja dulu)
+                setTimeout(() => {
+                    try {
+                        handleRocketBillingSelection();
+                        calculateRocketPrice();
+                    } catch (e) {
+                        console.error('Error updating rocket prices on modal open', e);
+                    }
+                }, 50);
+
             } else {
                 console.error("Elemen modal-rocket-billing tidak ditemukan!");
             }
