@@ -831,12 +831,17 @@
             // Reset tampilan input jam manual
             manualContainer.classList.add('d-none');
 
+            // Ambil elemen display yang dibutuhkan
+            const displayHarga = document.getElementById('rocket-display-harga');
+            const summaryMeja = document.getElementById('rocket-summary-meja');
+
             if (type === 'manual') {
                 manualContainer.classList.remove('d-none');
                 calculateRocketPrice();
             } else if (type === 'personal') {
                 const minCharge = {{ $currentRule?->min_charge ?? 10000 }};
-                displayHarga.innerText = minCharge.toLocaleString('id-ID');
+                if (displayHarga) displayHarga.innerText = minCharge.toLocaleString('id-ID');
+                if (summaryMeja) summaryMeja.innerText = summaryMeja.innerText; // no-op to avoid undefined usage
             } else if (type === 'package') {
                 calculateRocketPrice();
             }
