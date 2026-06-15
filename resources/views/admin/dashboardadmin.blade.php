@@ -488,11 +488,11 @@
                     }
 
                     // 2. LOGIKA NEARLY (< 20 Menit)
-                    if (minutesLeft < 20) {
+                    if (minutesLeft < nearlyThreshold) {
                         cardElement.classList.remove('bg-playing', 'bg-timeout-blink');
                         cardElement.classList.add('bg-nearly');
                         if (statusLabel) statusLabel.innerText = 'NEARLY';
-                        previousStatuses[tableNumber] = 'NEARLY'; // Simpan status ini
+                        previousStatuses[tableNumber] = 'NEARLY';
                     }
                     // 3. LOGIKA PLAYING
                     else {
@@ -529,6 +529,8 @@
         }
 
         // Jalankan timer setiap detik
+        // Tambahkan SEBELUM setInterval(updateTimers, 500):
+        const nearlyThreshold = {{ \App\Models\Setting::where('key', 'nearly_warning_minutes')->value('value') ?? 20 }};
         setInterval(updateTimers, 500);
         updateTimers();
 
@@ -831,12 +833,17 @@
             // Reset tampilan input jam manual
             manualContainer.classList.add('d-none');
 
+            // Ambil elemen display yang dibutuhkan
+            const displayHarga = document.getElementById('rocket-display-harga');
+            const summaryMeja = document.getElementById('rocket-summary-meja');
+
             if (type === 'manual') {
                 manualContainer.classList.remove('d-none');
                 calculateRocketPrice();
             } else if (type === 'personal') {
                 const minCharge = {{ $currentRule?->min_charge ?? 10000 }};
-                displayHarga.innerText = minCharge.toLocaleString('id-ID');
+                if (displayHarga) displayHarga.innerText = minCharge.toLocaleString('id-ID');
+                if (summaryMeja) summaryMeja.innerText = summaryMeja.innerText; // no-op to avoid undefined usage
             } else if (type === 'package') {
                 calculateRocketPrice();
             }
@@ -844,7 +851,7 @@
 
         function calculateRocketPrice() {
             const selector = document.getElementById('rocket-billing-selector');
-            if (selector.selectedIndex === -1) return;
+            if (!selector || selector.selectedIndex === -1) return;
 
             const selectedOption = selector.options[selector.selectedIndex];
             const type = selectedOption.getAttribute('data-type');
@@ -859,54 +866,39 @@
             let totalMejaTerpilih = (endTable - startTable) + 1;
             if (totalMejaTerpilih <= 0) totalMejaTerpilih = 0;
 
-            summaryMeja.innerText = `*Akan mengaktifkan ${totalMejaTerpilih} meja sekaligus secara mandiri.`;
+            // Default per-meja dan total
+            let hargaPerMeja = 0;
+            let totalHarga = 0;
 
             if (type === 'package') {
-                // Paket: harga flat dari data-price
-                let hargaPerMeja = parseInt(priceAttr) || 0;
-                displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
-
+                hargaPerMeja = parseInt(priceAttr) || 0;
             } else if (type === 'manual') {
                 const hours = parseFloat(document.getElementById('rocket-input-hours').value) || 0;
-
-                // ✅ SAMA PERSIS DENGAN calculatePrice() — Ambil pricing rules dari DB
                 const pricingRules = @json($pricingRules);
 
                 const now = new Date();
                 const currentHour = now.getHours();
                 const currentMinute = now.getMinutes();
                 const dayIndex = now.getDay(); // 0 = Minggu, 1 = Senin, ..., 6 = Sabtu
-
-                // Konversi ke standar ISO Laravel (1=Senin, 7=Minggu)
                 const currentDayISO = dayIndex === 0 ? 7 : dayIndex;
-
-                // Total menit dari jam 00:00
                 const totalCurrentMinutes = (currentHour * 60) + currentMinute;
 
-                // Fallback harga jika tidak ada rule yang cocok
                 let pricePerHour = 29000;
-
                 for (let rule of pricingRules) {
                     if (!rule.active_days || !rule.start_time || !rule.end_time) continue;
-
                     const activeDays = rule.active_days.toString().replace(/\s/g, '').split(',');
-
                     if (activeDays.includes(String(currentDayISO))) {
                         const startParts = rule.start_time.split(':');
                         const endParts = rule.end_time.split(':');
-
                         const startMinutes = (parseInt(startParts[0], 10) * 60) + parseInt(startParts[1], 10);
                         const endMinutes = (parseInt(endParts[0], 10) * 60) + parseInt(endParts[1], 10);
 
-                        // Aturan melewati tengah malam (contoh: 18:00 s.d 03:00)
                         if (endMinutes < startMinutes) {
                             if (totalCurrentMinutes >= startMinutes || totalCurrentMinutes < endMinutes) {
                                 pricePerHour = parseFloat(rule.price_per_hour);
                                 break;
                             }
-                        }
-                        // Aturan normal (contoh: 08:00 s.d 17:00)
-                        else {
+                        } else {
                             if (totalCurrentMinutes >= startMinutes && totalCurrentMinutes <= endMinutes) {
                                 pricePerHour = parseFloat(rule.price_per_hour);
                                 break;
@@ -915,14 +907,30 @@
                     }
                 }
 
-                // Harga per meja = jam × harga/jam dinamis
-                let hargaPerMeja = hours * pricePerHour;
-                displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
+                hargaPerMeja = hours * pricePerHour;
 
             } else if (type === 'personal') {
-                const minCharge = {{ $currentRule?->min_charge ?? 10000 }};
-                displayHarga.innerText = minCharge.toLocaleString('id-ID');
+                // Ambil min_charge dari server (nilai saat halaman dirender)
+                hargaPerMeja = {{ $currentRule?->min_charge ?? 10000 }};
             }
+
+            // Hitung total untuk semua meja yang dipilih
+            totalHarga = hargaPerMeja * totalMejaTerpilih;
+
+            // Debug: log nilai penting ke console
+            console.log('calculateRocketPrice', {
+                type,
+                startTable,
+                endTable,
+                totalMejaTerpilih,
+                hargaPerMeja,
+                totalHarga
+            });
+
+            // Tampilkan: per meja dan total di summary
+            if (displayHarga) displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
+            if (summaryMeja) summaryMeja.innerText =
+                `*Akan mengaktifkan ${totalMejaTerpilih} meja sekaligus secara mandiri. Total: Rp ${totalHarga.toLocaleString('id-ID')}`;
         }
 
 
@@ -950,6 +958,18 @@
             if (rocketModalEl) {
                 const modal = new bootstrap.Modal(rocketModalEl);
                 modal.show();
+
+                // Pastikan tampilan harga ter-update segera saat modal dibuka
+                // (tidak perlu admin mengubah input meja dulu)
+                setTimeout(() => {
+                    try {
+                        handleRocketBillingSelection();
+                        calculateRocketPrice();
+                    } catch (e) {
+                        console.error('Error updating rocket prices on modal open', e);
+                    }
+                }, 50);
+
             } else {
                 console.error("Elemen modal-rocket-billing tidak ditemukan!");
             }

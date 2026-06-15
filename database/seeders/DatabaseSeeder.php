@@ -134,5 +134,9 @@ class DatabaseSeeder extends Seeder
             ['key' => 'max_online_queue'],
             ['value' => 10] // Default 10 customer
         );
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'nearly_warning_minutes'],
+            ['value' => 20]
+        );
     }
 }

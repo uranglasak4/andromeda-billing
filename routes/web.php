@@ -94,6 +94,7 @@ Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () 
 
     Route::get('/tables', [MasterController::class, 'tableIndex'])->name('master.tables');
     Route::post('/tables/maintenance/{id}', [MasterController::class, 'toggleMaintenance'])->name('master.tables.maintenance');
+    Route::post('/tables/nearly-setting', [MasterController::class, 'updateNearlySetting'])->name('master.tables.nearly-setting');
 
     Route::get('/users', [UserController::class, 'index'])->name('master.users');
     Route::post('/users/store', [UserController::class, 'store'])->name('master.users.store');
@@ -110,29 +111,78 @@ Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () 
 Route::get('/status-lampu-iot', function() {
     try {
         $now = now();
+        $nearlyMinutes = (int) (\App\Models\Setting::where('key', 'nearly_warning_minutes')
+            ->value('value') ?? 20);
+
         $tables = \App\Models\PoolTable::orderBy('table_number', 'asc')->get();
         $statusLampu = [];
+
         foreach ($tables as $table) {
+
+            // ✅ Cek timeout & nearly untuk meja yang sedang playing
             if ($table->status === 'playing') {
-                $activeTransaction = \App\Models\Transaction::where('pool_table_id', $table->id)->where('status', 'running')->first();
-                if ($activeTransaction && $activeTransaction->end_time) {
-                    $endTime = \Carbon\Carbon::parse($activeTransaction->end_time);
+                $activeTx = \App\Models\Transaction::where('pool_table_id', $table->id)
+                    ->where('status', 'running')->first();
+
+                if ($activeTx && $activeTx->end_time) {
+                    $endTime = \Carbon\Carbon::parse($activeTx->end_time);
+                    $sisaMenit = $now->diffInMinutes($endTime, false); // false = bisa negatif
+
+                    if ($sisaMenit <= 0) {
+                        // Sudah timeout
+                        $table->status = 'timeout';
+                        $table->save();
+
+                    } elseif ($sisaMenit <= $nearlyMinutes) {
+                        // ✅ Sisa waktu <= nearly_warning_minutes → ubah ke nearly
+                        // Hanya trigger blink SEKALI saat pertama kali masuk nearly
+                        $table->status = 'nearly';
+                        $table->save();
+
+                        // Trigger blink 5x ke Flask/Arduino
+                        $relayChannel = $table->relay_channel ?? $table->table_number;
+                        try {
+                            \Illuminate\Support\Facades\Http::timeout(3)
+                                ->post("http://127.0.0.1:5000/api/lights/{$relayChannel}/blink");
+                        } catch (\Exception $e) {
+                            // Flask tidak jalan — skip, jangan error
+                        }
+                    }
+                }
+            }
+
+            // ✅ Khusus status nearly: cek ulang apakah sudah timeout
+            if ($table->status === 'nearly') {
+                $activeTx = \App\Models\Transaction::where('pool_table_id', $table->id)
+                    ->where('status', 'running')->first();
+
+                if ($activeTx && $activeTx->end_time) {
+                    $endTime = \Carbon\Carbon::parse($activeTx->end_time);
                     if ($now->greaterThanOrEqualTo($endTime)) {
                         $table->status = 'timeout';
                         $table->save();
                     }
                 }
             }
+
+            // Map status → ON/OFF untuk lampu fisik
             switch ($table->status) {
-                case 'playing': case 'nearly': case 'personal':
+                case 'playing':
+                case 'nearly':   // ✅ Nearly tetap ON, hanya berkedip sekali saat transisi
+                case 'personal':
                     $statusLampu[$table->table_number] = 'ON';
                     break;
-                case 'available': case 'timeout': case 'maintenance': default:
+                case 'available':
+                case 'timeout':
+                case 'maintenance':
+                default:
                     $statusLampu[$table->table_number] = 'OFF';
                     break;
             }
         }
+
         return response()->json($statusLampu);
+
     } catch (\Exception $e) {
         return response()->json(['error' => $e->getMessage()], 500);
     }

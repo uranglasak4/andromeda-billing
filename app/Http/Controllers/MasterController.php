@@ -19,8 +19,8 @@ class MasterController extends Controller
         $tables = PoolTable::all();
 
         $omzetHariIni = Transaction::where('status', 'finished')
-                        ->whereDate('end_time', today())
-                        ->sum('total_price');
+            ->whereDate('end_time', today())
+            ->sum('total_price');
 
         foreach ($tables as $table) {
             $historyToday = $table->transactions()
@@ -46,39 +46,39 @@ class MasterController extends Controller
     }
 
     public function pricingUpdate(Request $request, $id)
-{
-    // 1. Validasi input yang masuk dari form modal Anda
-    $request->validate([
-        'price'       => 'required|integer|min:0',
-        'min_charge'  => 'required|integer|min:0',
-        'start_time'  => 'required',
-        'end_time'    => 'required',
-        'active_days' => 'required|array', // Memastikan hari aktif dikirim berupa array
-    ]);
-
-    try {
-        $rule = PricingRule::findOrFail($id);
-
-        // 2. Jembatan Krusial: Ubah Array [1, 2, 3] menjadi String "1,2,3" agar bisa masuk database
-        $activeDaysString = implode(',', $request->active_days);
-
-        // 3. Update data langsung ke kolom database Anda masing-masing
-        $rule->update([
-            'price_per_hour' => $request->price,      // Menyimpan input 'price' ke kolom 'price_per_hour'
-            'min_charge'     => $request->min_charge, // Menyimpan input 'min_charge'
-            'start_time'     => $request->start_time,
-            'end_time'       => $request->end_time,
-            'active_days'    => $activeDaysString,    // Menyimpan string hasil konversi implode
+    {
+        // 1. Validasi input yang masuk dari form modal Anda
+        $request->validate([
+            'price' => 'required|integer|min:0',
+            'min_charge' => 'required|integer|min:0',
+            'start_time' => 'required',
+            'end_time' => 'required',
+            'active_days' => 'required|array', // Memastikan hari aktif dikirim berupa array
         ]);
 
-        // Kembali dengan notifikasi sukses
-        return redirect()->back()->with('success', 'Aturan harga reguler billing berhasil diperbarui!');
+        try {
+            $rule = PricingRule::findOrFail($id);
 
-    } catch (\Exception $e) {
-        // Jika ada kegagalan, tangkap pesan errornya agar terlihat jelas apa yang bermasalah
-        return redirect()->back()->with('error', 'Gagal memperbarui harga: ' . $e->getMessage());
+            // 2. Jembatan Krusial: Ubah Array [1, 2, 3] menjadi String "1,2,3" agar bisa masuk database
+            $activeDaysString = implode(',', $request->active_days);
+
+            // 3. Update data langsung ke kolom database Anda masing-masing
+            $rule->update([
+                'price_per_hour' => $request->price,      // Menyimpan input 'price' ke kolom 'price_per_hour'
+                'min_charge' => $request->min_charge, // Menyimpan input 'min_charge'
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+                'active_days' => $activeDaysString,    // Menyimpan string hasil konversi implode
+            ]);
+
+            // Kembali dengan notifikasi sukses
+            return redirect()->back()->with('success', 'Aturan harga reguler billing berhasil diperbarui!');
+
+        } catch (\Exception $e) {
+            // Jika ada kegagalan, tangkap pesan errornya agar terlihat jelas apa yang bermasalah
+            return redirect()->back()->with('error', 'Gagal memperbarui harga: ' . $e->getMessage());
+        }
     }
-}
 
     // --- MANAJEMEN FnB FIXED PAGINATION & DROPDOWN FILTER ---
     public function fnbIndex(Request $request)
@@ -171,7 +171,22 @@ class MasterController extends Controller
     public function tableIndex()
     {
         $tables = PoolTable::all();
-        return view('master.tables', compact('tables'));
+        $nearlyWarningMinutes = Setting::where('key', 'nearly_warning_minutes')->value('value') ?? 20;
+        return view('master.tables', compact('tables', 'nearlyWarningMinutes'));
+    }
+
+    public function updateNearlySetting(Request $request)
+    {
+        $request->validate([
+            'nearly_warning_minutes' => 'required|integer|min:1|max:60',
+        ]);
+
+        Setting::updateOrCreate(
+            ['key' => 'nearly_warning_minutes'],
+            ['value' => $request->nearly_warning_minutes]
+        );
+
+        return redirect()->back()->with('success', 'Konfigurasi peringatan Nearly berhasil disimpan! Lampu akan berkedip saat sisa ' . $request->nearly_warning_minutes . ' menit.');
     }
 
     public function toggleMaintenance($id)
@@ -195,30 +210,30 @@ class MasterController extends Controller
     }
 
     public function waitingListSetting()
-{
-    $verificationTime = Setting::where('key', 'verification_time')->value('value') ?? 15;
-    $maxOnlineQueue = Setting::where('key', 'max_online_queue')->value('value') ?? 10;
+    {
+        $verificationTime = Setting::where('key', 'verification_time')->value('value') ?? 15;
+        $maxOnlineQueue = Setting::where('key', 'max_online_queue')->value('value') ?? 10;
 
-    // ✅ Tambahkan ini agar tab waiting list bisa tampil
-    $waitingLists = \App\Models\WaitingList::whereDate('created_at', \Carbon\Carbon::today())
-        ->orderBy('created_at', 'asc')
-        ->get();
+        // ✅ Tambahkan ini agar tab waiting list bisa tampil
+        $waitingLists = \App\Models\WaitingList::whereDate('created_at', \Carbon\Carbon::today())
+            ->orderBy('created_at', 'asc')
+            ->get();
 
-    return view('master.wlsetting', compact('verificationTime', 'maxOnlineQueue', 'waitingLists'));
-}
+        return view('master.wlsetting', compact('verificationTime', 'maxOnlineQueue', 'waitingLists'));
+    }
 
-// Fungsi menyimpan/mengupdate konfigurasi dari form Master
-public function updateWaitingListSetting(Request $request)
-{
-    $request->validate([
-        'verification_time' => 'required|integer|min:1',
-        'max_online_queue'  => 'required|integer|min:1',
-    ]);
+    // Fungsi menyimpan/mengupdate konfigurasi dari form Master
+    public function updateWaitingListSetting(Request $request)
+    {
+        $request->validate([
+            'verification_time' => 'required|integer|min:1',
+            'max_online_queue' => 'required|integer|min:1',
+        ]);
 
-    // Update atau Buat jika key belum ada di tabel settings
-    Setting::updateOrCreate(['key' => 'verification_time'], ['value' => $request->verification_time]);
-    Setting::updateOrCreate(['key' => 'max_online_queue'], ['value' => $request->max_online_queue]);
+        // Update atau Buat jika key belum ada di tabel settings
+        Setting::updateOrCreate(['key' => 'verification_time'], ['value' => $request->verification_time]);
+        Setting::updateOrCreate(['key' => 'max_online_queue'], ['value' => $request->max_online_queue]);
 
-    return redirect()->back()->with('success', 'Konfigurasi Waiting List berhasil diperbarui oleh Master!');
-}
+        return redirect()->back()->with('success', 'Konfigurasi Waiting List berhasil diperbarui oleh Master!');
+    }
 }
