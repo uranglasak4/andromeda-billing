@@ -3,44 +3,6 @@
 @section('content')
     <div class="page-body">
         <div class="container-xl">
-            <!-- Bagian Atas: Pendaftaran & Status Antrean -->
-            <div class="row row-cards mb-4 d-flex align-items-stretch">
-                <div class="col-md-8 d-flex">
-                    <div class="card w-100">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h3 class="card-title">Pendaftaran Waiting List</h3>
-                            <button class="btn btn-primary btn-sm" onclick="toggleWaitingList()">
-                                <i class="ti ti-layout-sidebar-right me-1"></i> Toggle List Antrean
-                            </button>
-                        </div>
-                        <div class="card-body">
-                            <form action="{{ route('admin.waiting-list.store') }}" method="POST">
-                                @csrf
-                                <div class="row g-2">
-                                    <div class="col">
-                                        <input type="text" name="nama_pelanggan" class="form-control"
-                                            placeholder="Nama Customer" required>
-                                    </div>
-                                    <div class="col-auto">
-                                        <button type="submit" class="btn btn-primary">Tambah Antrean</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4 d-flex">
-                    <div class="card w-100 text-center bg-primary-lt">
-                        <div class="card-body d-flex flex-column justify-content-center">
-                            <div class="h3 mb-3">Waiting List Sekarang</div>
-                            <div class="h1 mb-0 font-weight-bold" style="font-size: 3rem;">{{ $currentWaitingCount ?? 0 }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Bagian Monitoring Meja -->
             <div class="row">
                 <div id="meja-section" class="col-md-12">
@@ -368,7 +330,7 @@
                                         <span class="input-group-text small">Dari</span>
                                         <input type="number" id="rocket-start-table" name="start_table"
                                             class="form-control text-center fw-bold" value="1" min="1"
-                                            max="14" oninput="calculateRocketPrice()" required>
+                                            max="16" oninput="calculateRocketPrice()" required>
                                     </div>
                                 </div>
                                 <div class="col">
@@ -376,7 +338,7 @@
                                         <span class="input-group-text small">Sampai</span>
                                         <input type="number" id="rocket-end-table" name="end_table"
                                             class="form-control text-center fw-bold" value="6" min="1"
-                                            max="14" oninput="calculateRocketPrice()" required>
+                                            max="16" oninput="calculateRocketPrice()" required>
                                     </div>
                                 </div>
                             </div>
