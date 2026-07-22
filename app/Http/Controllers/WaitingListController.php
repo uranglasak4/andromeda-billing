@@ -10,24 +10,26 @@ use Illuminate\Support\Facades\Http;
 
 class WaitingListController extends Controller
 {
-    // 1. TAMPILKAN HALAMAN UTAMA KASIR + CEK OTOMATIS EXPIRED
+    // 1. TAMPILKAN HALAMAN UTAMA KASIR + CEK OTOMATIS EXPIRED LAPIS 2
     public function index()
     {
-        // Ambil menit regulasi dari setting master (contoh: 2 menit)[cite: 19]
-        $limitMinutes = Setting::where('key', 'verification_time')->value('value') ?? 20;
+        // Ambil menit regulasi dari setting master (contoh: 15 menit ke kasir)
+        $limitMinutes = Setting::where('key', 'verification_time')->value('value') ?? 15;
 
-        // [ONLINE WEB - KONDISI 2]: Otomatis Expired jika telat verifikasi OTP[cite: 19]
-        $expiredQueues = WaitingList::where('tipe', 'online')
+        // [ONLINE WEB - LAPIS 2]: Otomatis Expired jika telat datang/lapor ke kasir
+        $unverifiedQueues = WaitingList::where('tipe', 'online')
             ->where('status', 'not_verified')
             ->get();
 
-        foreach ($expiredQueues as $queue) {
-            if (Carbon::parse($queue->created_at)->addMinutes((int) $limitMinutes)->isPast()) {
+        foreach ($unverifiedQueues as $queue) {
+            // Gunakan verified_at (waktu lolos Lapis 1) sebagai acuan hitung 15 menit
+            $startTime = $queue->verified_at ?? $queue->created_at;
+            if (Carbon::parse($startTime)->addMinutes((int) $limitMinutes)->isPast()) {
                 $queue->update(['status' => 'expired']);
             }
         }
 
-        // Ambil semua data antrean hari ini untuk di-filter di Tab Blade[cite: 19]
+        // Ambil semua data antrean hari ini
         $waitingLists = WaitingList::whereDate('created_at', Carbon::today())
             ->orderBy('created_at', 'desc')
             ->get();
@@ -38,14 +40,14 @@ class WaitingListController extends Controller
     // 2. PROSES SIMPAN ANTREAN (ONSITE & ONLINE)
     public function store(Request $request)
     {
-        $fonnteToken = env('FONNTE_TOKEN'); //[cite: 19]
+        $fonnteToken = env('FONNTE_TOKEN');
 
-        // Hitung nomor urut berjalan berdasarkan antrean aktif hari ini[cite: 19]
+        // Hitung nomor urut berjalan berdasarkan antrean aktif hari ini
         $nextQueueNo = WaitingList::whereDate('created_at', Carbon::today())
             ->whereIn('status', ['waiting', 'not_verified', 'verified', 'call'])
             ->count() + 1;
 
-        // Format nomor WhatsApp ke standar 62[cite: 19]
+        // Format nomor WhatsApp ke standar 62
         $formattedPhone = null;
         if ($request->filled('nomor_wa')) {
             $formattedPhone = $request->nomor_wa;
@@ -56,100 +58,159 @@ class WaitingListController extends Controller
             }
         }
 
-        $isClientAdmin = auth()->check() && auth()->user()->role === 'admin'; //[cite: 19]
+        $isClientAdmin = auth()->check() && auth()->user()->role === 'admin';
 
         if ($isClientAdmin) {
             // -------------------------------------------------------
-            // [DAFTAR ON SITE - KONDISI 1]
+            // [DAFTAR ON SITE] - Langsung Antrean Aktif
             // -------------------------------------------------------
             $request->validate([
                 'nama_pelanggan' => 'required|string|max:25',
                 'nomor_wa' => 'nullable|numeric',
-            ]); //[cite: 19]
+            ]);
 
             WaitingList::create([
                 'customer_name' => strtoupper($request->nama_pelanggan),
                 'phone_number' => $request->nomor_wa ?? '-',
                 'tipe' => 'onsite',
-                'status' => 'waiting', // Langsung masuk antrean aktif
-            ]); //[cite: 19]
+                'status' => 'waiting', // Onsite langsung masuk 'waiting'
+            ]);
 
-            // Kirim WA jika kasir menginput nomor WhatsApp
             if ($request->filled('nomor_wa')) {
                 $pesanWA = "Selamat anda sudah terdaftar menjadi waiting list no #" . $nextQueueNo . " di Andromeda Billiard. Silahkan untuk pantau website kami lebih lanjut.";
                 $this->kirimWA($formattedPhone, $pesanWA, $fonnteToken);
             }
 
-            return redirect()->back()->with('success', 'Antrean On-Site berhasil ditambahkan langsung oleh Kasir!'); //[cite: 19]
+            return redirect()->back()->with('success', 'Antrean On-Site berhasil ditambahkan langsung oleh Kasir!');
 
         } else {
             // -------------------------------------------------------
-            // [DAFTAR ONLINE WEB - KONDISI 1]
+            // [DAFTAR ONLINE WEB] - Masuk Lapis 1 (Pending)
             // -------------------------------------------------------
             $request->validate([
                 'nama_pelanggan' => 'required|string|max:25',
                 'nomor_wa' => 'required|numeric',
-            ]); //[cite: 19]
+            ]);
 
-            $nomor = preg_replace('/\D/', '', $request->nomor_wa); // hapus non-angka
+            $nomor = preg_replace('/\D/', '', $request->nomor_wa);
 
-            // Panjang nomor WA Indonesia: 9-13 digit (tanpa kode negara)
             if (strlen($nomor) < 9 || strlen($nomor) > 13) {
                 return redirect()->back()->with('invalid_wa', 'Nomor WhatsApp tidak valid! Masukkan nomor yang benar (tanpa +62).');
             }
 
-            // Pastikan diawali 8 (standar nomor HP Indonesia)
             if (substr($nomor, 0, 1) !== '8') {
                 return redirect()->back()->with('invalid_wa', 'Nomor WhatsApp harus diawali angka 8. Contoh: 81234567890');
             }
-            // Cek kuota online[cite: 19]
-            $maxOnlineQueue = Setting::where('key', 'max_online_queue')->value('value') ?? 15; //[cite: 19]
+
+            // Cek kuota online (hitung antrean aktif yang sudah lolos Lapis 1 dan yang terverifikasi)
+            $maxOnlineQueue = Setting::where('key', 'max_online_queue')->value('value') ?? 15;
             $currentOnlineCount = WaitingList::where('tipe', 'online')
-                ->where('status', 'not_verified')
+                ->whereIn('status', ['not_verified', 'verified'])
                 ->count();
 
             if ($currentOnlineCount >= (int) $maxOnlineQueue) {
-                return redirect()->back()->with('error', 'Maaf, kuota antrean online kami sedang penuh!'); //[cite: 19]
+                return redirect()->back()->with('error', 'Maaf, kuota antrean online kami sedang penuh!');
             }
 
-            $limitMinutes = Setting::where('key', 'verification_time')->value('value') ?? 2;
-            $otpCode = rand(1000, 9999); //[cite: 19]
+            $otpCode = rand(1000, 9999);
 
-            WaitingList::create([
+            // 🟢 UBAH: Status awal diset 'pending' untuk Lapis 1
+            $waitingList = WaitingList::create([
                 'customer_name' => strtoupper($request->nama_pelanggan),
-                'phone_number' => $request->nomor_wa,
+                'phone_number' => $formattedPhone,
                 'tipe' => 'online',
-                'status' => 'not_verified', // Belum verifikasi
-                'otp' => $otpCode, //[cite: 19]
+                'status' => 'pending',
+                'otp' => $otpCode,
             ]);
 
-            $pesanWA = "Halo " . strtoupper($request->nama_pelanggan) . ",\n\nPendaftaran antrean ONLINE WEB BERHASIL! 🎉\n\n📌 Nomor Urut Anda: #" . $nextQueueNo . "\n🔐 Kode OTP Verifikasi: " . $otpCode . "\n\n⚠️ Silakan ke kasir untuk melakukan verifikasi dalam waktu maksimal " . $limitMinutes . " menit dari sekarang sebelum antrean Anda kedaluwarsa (Expired). Terima kasih."; //[cite: 19]
+            $pesanWA = "Halo " . strtoupper($request->nama_pelanggan) . ",\n\nPendaftaran antrean ONLINE WEB BERHASIL!\n\nNomor Urut Anda: #" . $nextQueueNo . "\nKode OTP Verifikasi: " . $otpCode . "\n\nSilakan masukkan kode OTP di halaman website sebelum waktu 1 menit habis. Terima kasih.";
 
-            $this->kirimWA($formattedPhone, $pesanWA, $fonnteToken); //[cite: 19]
+            $this->kirimWA($formattedPhone, $pesanWA, $fonnteToken);
 
-            return redirect()->back()->with('success_online', 'Pendaftaran Berhasil! Kode OTP telah dikirimkan ke WhatsApp Anda.'); //[cite: 19]
+            session(['waiting_list_id' => $waitingList->id]);
+
+            return redirect()->route('customer.waiting-list.verify-page')->with([
+                'success_trigger' => 'Kode OTP telah dikirimkan ke WhatsApp Anda!'
+            ]);
         }
     }
 
-    // 3. [ONLINE WEB - KONDISI 3]: VERIFIKASI KASIR VIA OTP
+    // 3. TAMPILKAN HALAMAN VERIFIKASI OTP LAPIS 1
+    public function showVerifyPage()
+    {
+        if (!session()->has('waiting_list_id')) {
+            return redirect()->route('customer.index');
+        }
+        return view('customer.verify');
+    }
+
+    // 4. CEK OTP LAPIS 1 (MANDIRI VIA WEB)
+    public function checkOtpCustomer(Request $request)
+    {
+        $request->validate([
+            'otp_code' => 'required|numeric'
+        ]);
+
+        // 🟢 UBAH: Cari data yang statusnya 'pending'
+        $waitingList = WaitingList::whereDate('created_at', Carbon::today())
+            ->where('otp', $request->otp_code)
+            ->where('status', 'pending')
+            ->latest()
+            ->first();
+
+        if (!$waitingList) {
+            return back()->withErrors(['otp_code' => 'Kode OTP salah, tidak valid, atau batas waktu verifikasi Anda sudah habis!']);
+        }
+
+        // 🟢 UBAH: Lolos Lapis 1 -> Naikkan status ke 'not_verified' (Siap ke Kasir)
+        $waitingList->status = 'not_verified';
+        $waitingList->verified_at = now(); // Timer 15 menit ke kasir dimulai dari sini
+        $waitingList->save();
+
+        session(['trigger_lapis_dua' => true]);
+        session()->forget('waiting_list_id');
+
+        return redirect()->route('customer.index');
+    }
+
+    // 5. TIMEOUT LAPIS 1 (AJAX BILA 1 MENIT OTP HABIS)
+    public function handleTimeoutCustomer(Request $request)
+    {
+        $queue = WaitingList::find($request->id);
+
+        if ($queue && $queue->status === 'pending') {
+            // 🟢 UBAH: Set status ke 'failed' alih-alih delete
+            $queue->update([
+                'status' => 'failed',
+                'otp'    => null,
+                ]);
+            return response()->json(['status' => 'failed']);
+        }
+
+        return response()->json(['status' => 'no_action']);
+    }
+
+    // 6. VERIFIKASI KASIR LAPIS 2
     public function verifyPlayer(Request $request, $id)
     {
-        $queue = WaitingList::findOrFail($id); //[cite: 19]
+        $waitingList = WaitingList::find($id);
 
-        if ($request->input('input_otp') != $queue->otp) {
-            return redirect()->back()->with('warning', 'Kode OTP yang dimasukkan salah!'); //[cite: 19]
+        if ($waitingList) {
+            $waitingList->status = 'verified';
+            $waitingList->otp = null;
+            $waitingList->save();
+
+            return back()->with('success', 'Antrean berhasil diverifikasi penuh oleh Kasir!');
         }
 
-        $queue->update(['status' => 'verified']); // Status berubah jadi verified
-
-        return redirect()->back()->with('success', 'Status pelanggan online berhasil diverifikasi (Verified)!'); //[cite: 19]
+        return back()->with('error', 'Data tidak ditemukan.');
     }
 
-    // 4. [ON SITE KONDISI 3] & [ONLINE WEB KONDISI 4]: TOMBOL PANGGIL KASIR
+    // 7. TOMBOL PANGGIL KASIR
     public function panggilPlayer($id)
     {
         $queue = WaitingList::findOrFail($id);
-        $queue->update(['status' => 'call']); // Set ke status call
+        $queue->update(['status' => 'call']);
 
         if (!empty($queue->phone_number) && $queue->phone_number !== '-') {
             $formattedPhone = $queue->phone_number;
@@ -157,25 +218,23 @@ class WaitingListController extends Controller
                 $formattedPhone = '62' . substr($formattedPhone, 1);
             }
 
-            $pesanWA = "📢 PANGGILAN ANTREAN!\n\nHalo " . $queue->customer_name . ",\n\nSudah giliran Anda untuk bermain! 🎱 Silahkan segera menuju ke meja kasir Andromeda Billiard untuk memilih meja yang tersedia. Terima kasih.";
+            $pesanWA = "📢 PANGGILAN ANTREAN!\n\nHalo " . $queue->customer_name . ",\n\nSudah giliran Anda untuk bermain! Silahkan segera menuju ke meja kasir Andromeda Billiard untuk memilih meja yang tersedia. Terima kasih.";
             $this->kirimWA($formattedPhone, $pesanWA, env('FONNTE_TOKEN'));
         }
 
         return redirect()->back()->with('success', 'Panggilan berhasil dikirim via WhatsApp!');
     }
 
-    // 5. [ON SITE KONDISI 2] & [ONLINE WEB KONDISI 5]: TOMBOL COREG / SAKIP
+    // 8. TOMBOL SKIP / NO SHOW
     public function skipPlayer($id)
     {
         $queue = WaitingList::findOrFail($id);
-
-        // Langsung diubah ke status tunggal no_show
         $queue->update(['status' => 'no_show']);
 
-        return redirect()->back()->with('warning', 'Antrean ' . $queue->customer_name . ' dikeluarkan dan ditandai sebagai No-Show.'); //[cite: 19]
+        return redirect()->back()->with('warning', 'Antrean ' . $queue->customer_name . ' dikeluarkan dan ditandai sebagai No-Show.');
     }
 
-    // Fungsi Pembantu Pengiriman API Fonnte[cite: 19]
+    // Helper Fonnte API
     private function kirimWA($target, $message, $token)
     {
         if (!$target || $target === '-')
@@ -183,6 +242,6 @@ class WaitingListController extends Controller
         Http::withHeaders(['Authorization' => $token])->asForm()->post('https://api.fonnte.com/send', [
             'target' => $target,
             'message' => $message
-        ]); //[cite: 19]
+        ]);
     }
 }

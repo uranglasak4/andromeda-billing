@@ -107,6 +107,14 @@ Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () 
     Route::get('/waiting-list', [WaitingListController::class, 'index'])->name('master.waiting-list');
 });
 
+// Rute Pendaftaran Waiting List Mandiri untuk Customer (Tanpa Login)
+Route::post('/customer/waiting-list/store', [WaitingListController::class, 'store'])->name('customer.waiting-list.store');
+
+// === TAMBAHKAN 3 BARIS ROUTE BARU INI ===
+Route::get('/customer/waiting-list/verify', [WaitingListController::class, 'showVerifyPage'])->name('customer.waiting-list.verify-page');
+Route::post('/customer/waiting-list/check-otp', [WaitingListController::class, 'checkOtpCustomer'])->name('customer.waiting-list.check-otp');
+Route::post('/customer/waiting-list/timeout', [WaitingListController::class, 'handleTimeoutCustomer'])->name('customer.waiting-list.timeout');
+
 // Rute khusus untuk dibaca oleh Python di komputer kasir toko
 Route::get('/status-lampu-iot', function() {
     try {

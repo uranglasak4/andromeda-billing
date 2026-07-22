@@ -16,6 +16,7 @@ class WaitingList extends Model
         'phone_number',
         'otp',
         'tipe',
-        'status'
+        'status',
+        'verified_at'
     ];
 }

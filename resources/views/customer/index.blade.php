@@ -16,6 +16,23 @@
         </script>
     @endif
 
+    @if (session('trigger_lapis_dua') || session()->has('trigger_lapis_dua'))
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    title: 'Verifikasi Tahap 1 Sukses! 🔔',
+                    text: 'Status Anda kini "Online Unverified". Segera ke kasir Andromeda Billiard untuk verifikasi akhir menggunakan kode OTP WhatsApp Anda. Waktu Anda hanya 15 menit, lewat dari itu antrean otomatis hangus!',
+                    icon: 'warning',
+                    confirmButtonText: 'OK, saya paham, kembali ke halaman',
+                    confirmButtonColor: '#28a745',
+                    allowOutsideClick: false
+                });
+            });
+        </script>
+        {{-- Hapus session secara manual setelah dibaca agar tidak muncul lagi pas di-refresh --}}
+        @php session()->forget('trigger_lapis_dua'); @endphp
+    @endif
+
     @if (session('invalid_wa'))
         <script>
             document.addEventListener('DOMContentLoaded', function() {
@@ -165,7 +182,6 @@
 
         let hasAvailableTable = false;
         let currentOnlineCount = 0;
-        // 1. Definisikan variabel limit secara global, default awal kita set 0 dulu
         let maxOnlineLimit = 0;
 
         function fetchLiveMonitorData() {
@@ -175,8 +191,6 @@
                     const tables = data.tables || [];
                     const waitingList = data.waiting_list || [];
 
-                    // 2. AMBIL LIMIT SECARA DINAMIS DARI API (Jika API belum melempar, kita backup ke data controller)
-                    // Kita buat fleksibel agar membaca properti max_online_queue langsung dari respon json server
                     if (data.max_online_queue) {
                         maxOnlineLimit = parseInt(data.max_online_queue);
                     } else {
@@ -187,9 +201,11 @@
                     let checkAvailable = false;
                     let tableGridHTML = '';
 
-                    // Hitung jumlah antrean online aktif saat ini
-                    currentOnlineCount = waitingList.filter(guest => guest.tipe === 'online' && (guest.status ===
-                        'waiting' || guest.status === 'not_verified')).length;
+                    // 🔵 UBAH: Hitung antrean online aktif yang sudah lolos Lapis 1
+                    currentOnlineCount = waitingList.filter(guest =>
+                        guest.tipe === 'online' && (guest.status === 'online_unverified' || guest.status ===
+                            'verified')
+                    ).length;
 
                     tables.forEach(table => {
                         let bgClass = 'bg-available';
@@ -281,22 +297,35 @@
                             `<tr><td colspan="3" class="text-center text-muted py-4 small">🍃 Antrean kosong, meja siap dipesan.</td></tr>`;
                     } else {
                         waitingList.forEach((guest, index) => {
-                            let statusBadgeHTML = '<span class="badge bg-orange-lt px-2 py-1">WAITING</span>';
+                            let statusBadgeHTML =
+                            '<span class="badge bg-secondary-lt px-2 py-1">WAITING</span>';
+
                             if (guest.tipe === 'onsite') {
                                 statusBadgeHTML =
                                     '<span class="badge bg-success-lt px-2 py-1">📍 ON-SITE KASIR</span>';
                             } else if (guest.tipe === 'online') {
-                                statusBadgeHTML = (guest.status === 'verified' || guest.status === 'waiting') ?
-                                    '<span class="badge bg-blue-lt px-2 py-1">🌐 ONLINE WEB VERIFIED</span>' :
-                                    '<span class="badge bg-danger-lt px-2 py-1">⏳ ONLINE WEB UNVERIFIED</span>';
+                                if (guest.status === 'pending') {
+                                    statusBadgeHTML =
+                                        '<span class="badge bg-warning-lt px-2 py-1">⏳ MENUNGGU OTP WEB</span>';
+                                } else if (guest.status === 'not_verified') {
+                                    statusBadgeHTML =
+                                        '<span class="badge bg-danger-lt px-2 py-1">⏳ ONLINE WEB UNVERIFIED</span>';
+                                } else if (guest.status === 'verified') {
+                                    statusBadgeHTML =
+                                        '<span class="badge bg-blue-lt px-2 py-1">🌐 ONLINE WEB VERIFIED</span>';
+                                } else if (guest.status === 'failed') {
+                                    statusBadgeHTML =
+                                        '<span class="badge bg-secondary-lt px-2 py-1">❌ GAGAL VERIFIED</span>';
+                                }
                             }
+
                             waitingHTML += `
-                                <tr class="fw-bold text-dark">
-                                    <td><span class="badge bg-secondary-lt">${index + 1}</span></td>
-                                    <td class="text-uppercase text-truncate" style="max-width: 120px;" title="${guest.customer_name}">${guest.customer_name}</td>
-                                    <td class="text-end">${statusBadgeHTML}</td>
-                                </tr>
-                            `;
+        <tr class="fw-bold text-dark">
+            <td><span class="badge bg-secondary-lt">${index + 1}</span></td>
+            <td class="text-uppercase text-truncate" style="max-width: 120px;" title="${guest.customer_name}">${guest.customer_name}</td>
+            <td class="text-end">${statusBadgeHTML}</td>
+        </tr>
+    `;
                         });
                     }
                     document.getElementById('customer-waiting-grid').innerHTML = waitingHTML;
@@ -304,7 +333,6 @@
                 .catch(err => console.error("Gagal sinkronisasi data monitor:", err));
         }
 
-        // FUNGSI CEK KETERSEDIAAN DAN BATAS LIMIT KUOTA (FIXED & DINAMIS)
         function checkTableAvailability() {
             if (hasAvailableTable) {
                 Swal.fire({
@@ -315,7 +343,6 @@
                     confirmButtonText: 'Oke, Siap!'
                 });
             } else if (currentOnlineCount >= maxOnlineLimit) {
-                // SEKARANG MENGIKUTI DATA INPUTAN MASTER SECARA REALTIME
                 Swal.fire({
                     title: 'Kuota Online Penuh! 📋',
                     text: 'Maaf, kuota maksimal waiting list via website sudah mencapai batas (' + maxOnlineLimit +
@@ -330,7 +357,6 @@
             }
         }
 
-        // ✅ VALIDASI TURNSTILE SEBELUM FORM SUBMIT
         function validateTurnstile() {
             const token = document.querySelector('[name="cf-turnstile-response"]');
             if (!token || !token.value) {
@@ -346,7 +372,6 @@
             return true;
         }
 
-        // Reset Turnstile widget setiap kali modal dibuka agar tidak stale
         document.getElementById('modal-waiting-list').addEventListener('show.bs.modal', function() {
             if (typeof turnstile !== 'undefined') {
                 turnstile.reset();

@@ -19,6 +19,8 @@ return new class extends Migration
 
             // Kolom Status Tunggal (Sudah Diperbaiki Komanya Jid!)
             $table->enum('status', [
+                'pending',
+                'failed',
                 'waiting',       // Customer WL yang daftar Onsite (Langsung aktif)
                 'not_verified',  // Customer daftar Online tetapi belum verifikasi OTP
                 'verified',      // Online yang sudah sukses lapor & check-in ke kasir
@@ -26,7 +28,7 @@ return new class extends Migration
                 'expired',       // Online yang hangus otomatis karena telat lapor menit verifikasi
                 'no_show'        // Onsite/Online yang dipanggil tapi orangnya kabur/tidak ada respon
             ])->default('waiting'); // Secara default default-nya 'waiting' (bisa kita override di Controller saat simpan)
-
+            $table->timestamp('verified_at')->nullable();
             $table->timestamps();
         });
     }

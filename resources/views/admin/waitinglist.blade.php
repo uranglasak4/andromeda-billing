@@ -84,6 +84,9 @@
                             <li class="nav-item" role="presentation">
                                 <a href="#tab-expired" class="nav-link fw-bold py-3 px-3 text-danger" data-bs-toggle="tab" role="tab">💨 Expired / Kabur</a>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <a href="#tab-failed" class="nav-link fw-bold py-3 px-3 text-secondary" data-bs-toggle="tab" role="tab">❌ Gagal Verifikasi</a>
+                            </li>
                         </ul>
                     </div>
 
@@ -121,6 +124,10 @@
             @include('admin.table-loop', ['items' => $waitingLists->where('status', 'expired')])
         </div>
 
+        <!-- 7. TAB FAILED (GAGAL VERIFIKASI OTP) -->
+        <div class="tab-pane fade" id="tab-failed" role="tabpanel">
+            @include('admin.table-loop', ['items' => $waitingLists->where('status', 'failed')])
+        </div>
     </div>
 </div>
             </div>
