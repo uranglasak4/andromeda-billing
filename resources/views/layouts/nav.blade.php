@@ -37,9 +37,16 @@
     <div class="page">
         <header class="navbar navbar-expand-md navbar-light d-print-none">
             <div class="container-fluid">
+                {{-- 🔴 TOMBOL HAMBURGER UNTUK TAMPILAN MOBILE --}}
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu"
+                    aria-controls="navbar-menu" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
                 <h1 class="navbar-brand d-none-navbar-horizontal pe-0 pe-md-3">
                     <a href="{{ route('master.dashboard') }}">ANDROMEDA</a>
                 </h1>
+
                 <div class="navbar-nav flex-row order-md-last">
                     <div class="nav-item d-none d-md-flex me-3">
                         <a href="?theme=dark" class="nav-link px-0 hide-theme-dark" title="Enable dark mode">
@@ -135,7 +142,7 @@
                                     </a>
                                 </li>
                                 <li class="nav-item {{ Route::is('master.users') ? 'active' : '' }}">
-                                    <a class="dropdown-item" href="{{ route('master.users') }}">
+                                    <a class="nav-link" href="{{ route('master.users') }}">
                                         <span class="nav-link-title">Manajemen Akun Kasir</span>
                                     </a>
                                 </li>

@@ -18,6 +18,7 @@ return new class extends Migration
             $table->enum('status', ['available', 'playing', 'nearly', 'personal', 'maintenance', 'timeout'])->default('available');
             $table->boolean('is_active')->default(true); // Permintaan dosen: bisa nambah meja
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

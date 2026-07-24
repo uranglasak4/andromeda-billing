@@ -95,6 +95,8 @@ Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () 
     Route::get('/tables', [MasterController::class, 'tableIndex'])->name('master.tables');
     Route::post('/tables/maintenance/{id}', [MasterController::class, 'toggleMaintenance'])->name('master.tables.maintenance');
     Route::post('/tables/nearly-setting', [MasterController::class, 'updateNearlySetting'])->name('master.tables.nearly-setting');
+    Route::post('/tables/store', [MasterController::class, 'storeTable'])->name('master.tables.store');
+    Route::delete('/tables/{id}', [MasterController::class, 'destroyTable'])->name('master.tables.destroy');
 
     Route::get('/users', [UserController::class, 'index'])->name('master.users');
     Route::post('/users/store', [UserController::class, 'store'])->name('master.users.store');

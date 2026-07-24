@@ -16,7 +16,7 @@ class MasterController extends Controller
 {
     public function index()
     {
-        $tables = PoolTable::all();
+        $tables = PoolTable::orderBy('table_number', 'asc')->get();
 
         $omzetHariIni = Transaction::where('status', 'finished')
             ->whereDate('end_time', today())
@@ -170,9 +170,65 @@ class MasterController extends Controller
 
     public function tableIndex()
     {
-        $tables = PoolTable::all();
+        $tables = PoolTable::orderBy('table_number', 'asc')->get();
         $nearlyWarningMinutes = Setting::where('key', 'nearly_warning_minutes')->value('value') ?? 20;
         return view('master.tables', compact('tables', 'nearlyWarningMinutes'));
+    }
+
+    // --- METHOD TAMBAH MEJA BARU (MASTER) ---
+    public function storeTable(Request $request)
+    {
+        // 1. Validasi Input Form
+        $request->validate([
+            'table_number' => 'required|numeric|min:1',
+            'relay_channel' => 'required|numeric|min:1|max:' . env('MAX_RELAY_CHANNELS', 16),
+        ], [
+            'table_number.required' => 'Nomor meja wajib diisi!',
+            'relay_channel.max' => 'Relay channel melebihi kapasitas hardware (' . env('MAX_RELAY_CHANNELS', 16) . ')!',
+        ]);
+
+        // 2. Cek apakah nomor/relay sedang DIPAKAI OLEH MEJA AKTIF (Belum Soft Delete)
+        $activeTableExist = PoolTable::where('table_number', $request->table_number)
+            ->orWhere('relay_channel', $request->relay_channel)
+            ->exists();
+
+        if ($activeTableExist) {
+            return redirect()->back()->with('error', 'Nomor meja atau Relay Channel sudah digunakan oleh meja aktif lain!');
+        }
+
+        // 3. Bersihkan data bekas Soft Delete jika ada yang bentrok dengan input baru ini
+        PoolTable::withTrashed()
+            ->where('table_number', $request->table_number)
+            ->orWhere('relay_channel', $request->relay_channel)
+            ->forceDelete();
+
+        // 4. Simpan Meja Baru
+        PoolTable::create([
+            'table_number' => $request->table_number,
+            'relay_channel' => $request->relay_channel,
+            'status' => 'available',
+            'is_active' => true,
+        ]);
+
+        return redirect()->back()->with('success', "Meja {$request->table_number} berhasil ditambahkan!");
+    }
+
+    // --- METHOD HAPUS MEJA (MASTER) ---
+    public function destroyTable($id)
+    {
+        $table = PoolTable::findOrFail($id);
+
+        // Tetap cegah jika meja sedang aktif dipakai bermain
+        if (in_array($table->status, ['playing', 'personal', 'nearly'])) {
+            return redirect()->back()->with('error', 'Gagal menghapus! Meja ini sedang digunakan dalam transaksi aktif.');
+        }
+
+        $tableNumber = $table->table_number;
+
+        // Menghapus meja secara soft delete (hanya mengisi kolom deleted_at)
+        $table->delete();
+
+        return redirect()->back()->with('success', "Meja {$tableNumber} berhasil dihapus dari sistem!");
     }
 
     public function updateNearlySetting(Request $request)
