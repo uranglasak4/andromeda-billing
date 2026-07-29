@@ -6,236 +6,199 @@ use Illuminate\Http\Request;
 use App\Models\FnbProduct;
 use App\Models\Transaction;
 use App\Models\OrderFnb;
-use App\Models\FnbCategory; // Pastikan model kategori di-import jika ada
+use App\Models\FnbCategory;
 
 class OrderFnbController extends Controller
 {
     public function index()
-{
-    // 1. Ambil semua menu makanan beserta ID kategorinya
-    $products = FnbProduct::where('stock', '>', 0)->get();
+    {
+        $products = FnbProduct::where('stock', '>', 0)->get();
+        $categories = FnbCategory::orderBy('name', 'asc')->get();
 
-    // 2. Ambil semua kategori untuk tombol filter di atas
-    $categories = \App\Models\FnbCategory::orderBy('name', 'asc')->get();
+        $activeTransactions = Transaction::with('poolTable')
+            ->join('pool_tables', 'transactions.pool_table_id', '=', 'pool_tables.id')
+            ->where('transactions.status', 'running')
+            ->select('transactions.*')
+            ->orderBy(\DB::raw('CAST(pool_tables.table_number AS UNSIGNED)'), 'ASC')
+            ->get();
 
-    // 3. Ambil list transaksi meja yang sedang 'running' (URUT BERDASARKAN MEJA 1 - 14)
-    $activeTransactions = Transaction::with('poolTable')
-        ->join('pool_tables', 'transactions.pool_table_id', '=', 'pool_tables.id')
-        ->where('transactions.status', 'running')
-        ->select('transactions.*') // Pastikan hanya mengambil kolom milik transaksi agar ID tidak tertukar
-        ->orderBy(\DB::raw('CAST(pool_tables.table_number AS UNSIGNED)'), 'ASC')
-        ->get();
+        $recentOrders = OrderFnb::with('fnbProduct')
+            ->latest()
+            ->take(10)
+            ->get();
 
-    // 4. Ambil riwayat penjualan FnB
-    $recentOrders = OrderFnb::with('fnbProduct')
-        ->latest()
-        ->take(10)
-        ->get();
-
-    return view('admin.orderfnb', compact('products', 'categories', 'activeTransactions', 'recentOrders'));
-}
+        return view('admin.orderfnb', compact('products', 'categories', 'activeTransactions', 'recentOrders'));
+    }
 
     public function store(Request $request)
-{
-    try {
+    {
         $request->validate([
             'order_type' => 'required|in:table,standalone',
-            'items' => 'required|array|min:1',
-            'items.*.id' => 'required|exists:fnb_products,id',
-            'items.*.qty' => 'required|integer|min:1',
+            'transaction_id' => 'required_if:order_type,table',
+            'items' => 'required|array',
         ]);
 
-        // 1. Definisikan variabel awal untuk transaksi meja
-        $transaction = null;
-
-        if ($request->order_type == 'table') {
-            $request->validate(['transaction_id' => 'required|exists:transactions,id']);
-
-            // AMBIL DATA TRANSAKSI BERDASARKAN ID YANG DIKIRIM FRONTEND!
-            $transaction = Transaction::find($request->transaction_id);
-        } else {
-            $request->validate(['customer_name' => 'required|string|max:100']);
-        }
+        $transaction = Transaction::find($request->transaction_id);
 
         foreach ($request->items as $item) {
+            // Abaikan item paket bawaan (Rp 0) agar tidak di-update ulang
+            if (isset($item['is_package_include']) && $item['is_package_include']) {
+                continue;
+            }
+
             $product = FnbProduct::find($item['id']);
-            if (!$product) continue;
+            if (!$product)
+                continue;
 
-            $qty = (int) $item['qty'];
-            $subtotal = $product->price * $qty;
+            $inputQty = (int) $item['qty'];
+            $price = (float) $product->price;
 
-            if ($request->order_type === 'table' && $transaction) {
-                // Cari baris order lama yang belum lunas untuk menu ini di transaksi terkait
-                $existingOrder = OrderFnb::where('transaction_id', $transaction->id)
-                    ->where('fnb_product_id', $product->id)
-                    ->where('payment_status', 'unpaid')
-                    ->first();
+            // Cari apakah pesanan FnB berbayar untuk produk ini sudah ada di transaksi
+            $existingOrder = OrderFnb::where('transaction_id', $transaction->id)
+                ->where('fnb_product_id', $product->id)
+                ->where('price', '>', 0)
+                ->first();
 
-                // Hitung selisih stok yang harus dikurangi/dikembalikan
-                $oldQty = $existingOrder ? $existingOrder->qty : 0;
-                $qtyDifference = $qty - $oldQty;
+            if ($existingOrder) {
+                // Jika sudah ada sebelumnya, ganti qty-nya dengan qty terbaru dari keranjang
+                $qtyDiff = $inputQty - $existingOrder->qty;
 
-                if ($qty <= 0) {
-                    // Jika dikurangi sampai habis/0 oleh kasir, hapus barisnya dari db
-                    if ($existingOrder) {
-                        $product->increment('stock', $oldQty); // kembalikan stok utuh
-                        $existingOrder->delete();
-                    }
-                } else {
-                    // Update pesanan lama atau buat baru jika belum pernah dipesan
-                    OrderFnb::updateOrCreate(
-                        [
-                            'transaction_id' => $transaction->id,
-                            'fnb_product_id' => $product->id,
-                            'payment_status' => 'unpaid'
-                        ],
-                        [
-                            'customer_name'  => $transaction->customer_name,
-                            'qty'            => $qty,
-                            'price'          => $product->price,
-                            'subtotal'       => $subtotal
-                        ]
-                    );
+                $existingOrder->update([
+                    'qty' => $inputQty,
+                    'subtotal' => $inputQty * $price
+                ]);
 
-                    // Sesuaikan stok berdasarkan selisih perubahan qty
-                    if ($qtyDifference > 0) {
-                        $product->decrement('stock', $qtyDifference);
-                    } else if ($qtyDifference < 0) {
-                        $product->increment('stock', abs($qtyDifference));
-                    }
+                // Potong stok produk sesuai selisihnya saja
+                if ($qtyDiff > 0) {
+                    $product->decrement('stock', $qtyDiff);
                 }
             } else {
-                // Untuk orderan Tanpa Meja (Standalone / Takeaway) tetap langsung buat baru
+                // Buat record pesanan berbayar baru
                 OrderFnb::create([
-                    'transaction_id' => null,
+                    'transaction_id' => $transaction->id,
                     'fnb_product_id' => $product->id,
-                    'customer_name'  => $request->customer_name,
-                    'qty'            => $qty,
-                    'price'          => $product->price,
-                    'subtotal'       => $subtotal,
-                    'payment_status' => 'paid'
+                    'customer_name' => $transaction->customer_name,
+                    'qty' => $inputQty,
+                    'price' => $price,
+                    'subtotal' => $inputQty * $price,
+                    'payment_status' => 'unpaid'
                 ]);
-                $product->decrement('stock', $qty);
+
+                $product->decrement('stock', $inputQty);
             }
         }
 
         return response()->json([
             'success' => true,
-            'message' => "Berhasil memperbarui pesanan makanan Meja!"
+            'message' => 'Pesanan FnB berhasil diperbarui'
         ]);
-
-    } catch (\Exception $e) {
-        // Log error agar jika ada masalah bisa kita lacak di storage/logs/laravel.log
-        \Log::error("POS FnB Error: " . $e->getMessage());
-
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage()
-        ], 500);
-    }
-}
-
-    public function fnbProduct()
-{
-    return $this->belongsTo(FnbProduct::class, 'fnb_product_id');
-}
-
-public function getCurrentCart($table_id)
-{
-    // Pastikan mencari berdasarkan pool_table_id dan status 'running' sesuai database billing Anda
-    $transaction = Transaction::where('pool_table_id', $table_id)
-        ->where('status', 'running')
-        ->first();
-
-    if (!$transaction) {
-        return response()->json([]);
     }
 
-    $orders = OrderFnb::where('transaction_id', $transaction->id)
-        ->where('payment_status', 'unpaid')
-        ->with('fnbProduct')
-        ->get();
-
-    $cartItems = $orders->map(function ($order) {
-        return [
-            'id'       => $order->fnb_product_id,
-            'order_id' => $order->id,
-            'name'     => $order->fnbProduct->name ?? 'Menu',
-            'price'    => (int) $order->price,
-            'qty'      => (int) $order->qty,
-            'subtotal' => (int) $order->subtotal
-        ];
-    });
-
-    return response()->json($cartItems);
-}
-
-// 🚀 FUNGSI BARU: Hapus item FnB yang salah input oleh kasir
-public function destroyItem($order_id)
-{
-    try {
-        $order = OrderFnb::findOrFail($order_id);
-
-        // Kembalikan stok produk yang tadi terlanjur dipotong
-        if ($order->fnbProduct) {
-            $order->fnbProduct->increment('stock', $order->qty);
-        }
-
-        // Hapus data orderan salah tersebut dari database
-        $order->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Pesanan berhasil dihapus dari meja!'
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Gagal menghapus pesanan: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-public function getActiveTableOrders($table_id)
-{
-    try {
+    public function getCurrentCart($table_id)
+    {
         $transaction = Transaction::where('pool_table_id', $table_id)
-            ->where('status', 'running') // Gunakan 'running', bukan 'active'
+            ->where('status', 'running')
             ->first();
 
         if (!$transaction) {
-            return response()->json([
-                'success' => true,
-                'items' => []
-            ]);
+            return response()->json([]);
         }
 
-        $orders = OrderFnb::with('fnbProduct') // Gunakan relasi fnbProduct yang benar
-            ->where('transaction_id', $transaction->id)
+        $orders = OrderFnb::where('transaction_id', $transaction->id)
             ->where('payment_status', 'unpaid')
+            ->with('fnbProduct')
             ->get();
 
-        $formattedItems = $orders->map(function($order) {
+        $cartItems = $orders->map(function ($order) {
+            $isIncludePackage = ((int) $order->price === 0);
+
             return [
                 'id' => $order->fnb_product_id,
-                'name' => $order->fnbProduct->name ?? 'Produk Terhapus',
+                'order_id' => $order->id,
+                'name' => ($order->fnbProduct->name ?? 'Menu') . ($isIncludePackage ? ' (Include Paket)' : ''),
                 'price' => (int) $order->price,
                 'qty' => (int) $order->qty,
-                'image' => null
+                'subtotal' => (int) $order->subtotal,
+                'is_package_include' => $isIncludePackage
             ];
         });
 
-        return response()->json([
-            'success' => true,
-            'items' => $formattedItems
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage()
-        ], 500);
+        return response()->json($cartItems);
     }
-}
 
+    public function destroyItem($order_id)
+    {
+        try {
+            $order = OrderFnb::findOrFail($order_id);
+
+            // Cegah penghapusan jika item berharga 0 (bawaan paket)
+            if ((int) $order->price === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item bawaan paket tidak dapat dihapus!'
+                ], 422);
+            }
+
+            if ($order->fnbProduct) {
+                $order->fnbProduct->increment('stock', $order->qty);
+            }
+
+            $order->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pesanan berhasil dihapus dari meja!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus pesanan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getActiveTableOrders($table_id)
+    {
+        try {
+            $transaction = Transaction::where('pool_table_id', $table_id)
+                ->where('status', 'running')
+                ->first();
+
+            if (!$transaction) {
+                return response()->json([
+                    'success' => true,
+                    'items' => []
+                ]);
+            }
+
+            $orders = OrderFnb::with('fnbProduct')
+                ->where('transaction_id', $transaction->id)
+                ->where('payment_status', 'unpaid')
+                ->get();
+
+            $formattedItems = $orders->map(function ($order) {
+                $isIncludePackage = ((int) $order->price === 0);
+
+                return [
+                    'id' => $order->fnb_product_id,
+                    'order_id' => $order->id,
+                    'name' => ($order->fnbProduct->name ?? 'Produk Terhapus') . ($isIncludePackage ? ' (Include Paket)' : ''),
+                    'price' => (int) $order->price,
+                    'qty' => (int) $order->qty,
+                    'is_package_include' => $isIncludePackage
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'items' => $formattedItems
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

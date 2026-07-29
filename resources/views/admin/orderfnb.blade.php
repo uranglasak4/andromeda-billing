@@ -202,389 +202,389 @@
     </style>
 
     <script>
-        let cart = [];
+    let cart = [];
 
-        // =========================================================================
-        // 1. LIVE FILTER KATEGORI (UX NYAMAN)
-        // =========================================================================
-        function filterCategory(className, btnElement) {
-            const buttons = document.querySelectorAll('.btn-filter-cat');
-            buttons.forEach(btn => {
-                btn.classList.remove('btn-warning');
-                btn.classList.add('btn-outline-light');
-            });
-            btnElement.classList.remove('btn-outline-light');
-            btnElement.classList.add('btn-warning');
+    // =========================================================================
+    // HELPER FUNCTION: FORMAT CURRENCY / ANGKA
+    // =========================================================================
+    function numberFormat(number) {
+        return new Intl.NumberFormat('id-ID').format(number || 0);
+    }
 
-            const items = document.querySelectorAll('.fnb-item-card');
-            items.forEach(item => {
-                if (className === 'all' || item.classList.contains(className)) {
-                    item.classList.remove('d-none');
-                } else {
-                    item.classList.add('d-none');
-                }
-            });
-        }
+    // =========================================================================
+    // 1. LIVE FILTER KATEGORI
+    // =========================================================================
+    function filterCategory(className, btnElement) {
+        const buttons = document.querySelectorAll('.btn-filter-cat');
+        buttons.forEach(btn => {
+            btn.classList.remove('btn-warning');
+            btn.classList.add('btn-outline-light');
+        });
+        btnElement.classList.remove('btn-outline-light');
+        btnElement.classList.add('btn-warning');
 
-        // =========================================================================
-        // 2. TOGGLE TIPE ORDERAN (BILL MEJA / STANDALONE)
-        // =========================================================================
-        function toggleType(type) {
-            if (type === 'table') {
-                document.getElementById('lbl-type-table').className =
-                    'form-check form-check-inline m-0 btn w-100 p-2 border active-type-btn';
-                document.getElementById('lbl-type-standalone').className =
-                    'form-check form-check-inline m-0 btn w-100 p-2 border text-muted';
-                document.getElementById('box-select-table').classList.remove('d-none');
-                document.getElementById('box-input-name').classList.add('d-none');
-
-                // PERBAIKAN: Saat balik ke Bill Meja, otomatis tarik data ulang dari database berdasarkan meja yang terpilih
-                loadCartBySelectedMeja();
+        const items = document.querySelectorAll('.fnb-item-card');
+        items.forEach(item => {
+            if (className === 'all' || item.classList.contains(className)) {
+                item.classList.remove('d-none');
             } else {
-                document.getElementById('lbl-type-standalone').className =
-                    'form-check form-check-inline m-0 btn w-100 p-2 border active-type-btn';
-                document.getElementById('lbl-type-table').className =
-                    'form-check form-check-inline m-0 btn w-100 p-2 border text-muted';
-                document.getElementById('box-select-table').classList.add('d-none');
-                document.getElementById('box-input-name').classList.remove('d-none');
-
-                // Kosongkan keranjang murni untuk transaksi Standalone / Walk-in baru
-                cart = [];
-                renderCart();
+                item.classList.add('d-none');
             }
-        }
+        });
+    }
 
-        // =========================================================================
-        // 3. TAMBAH PRODUK KE KERANJANG (CREATE/UPDATE LOKAL)
-        // =========================================================================
-        function addToCart(id, name, price, maxStock) {
-            let existing = cart.find(item => item.id === id);
-            if (existing) {
-                if (existing.qty >= maxStock) {
-                    Swal.fire('Stok Habis!', 'Jumlah melebihi stok produk yang tersedia.', 'warning');
-                    return;
-                }
-                existing.qty += 1;
-            } else {
-                if (maxStock < 1) {
-                    Swal.fire('Stok Habis!', 'Produk tidak tersedia.', 'warning');
-                    return;
-                }
-                cart.push({
-                    id: id,
-                    name: name,
-                    price: price,
-                    qty: 1,
-                    maxStock: maxStock
-                });
-            }
+    // =========================================================================
+    // 2. TOGGLE TIPE ORDERAN (BILL MEJA / STANDALONE)
+    // =========================================================================
+    function toggleType(type) {
+        if (type === 'table') {
+            document.getElementById('lbl-type-table').className =
+                'form-check form-check-inline m-0 btn w-100 p-2 border active-type-btn';
+            document.getElementById('lbl-type-standalone').className =
+                'form-check form-check-inline m-0 btn w-100 p-2 border text-muted';
+            document.getElementById('box-select-table').classList.remove('d-none');
+            document.getElementById('box-input-name').classList.add('d-none');
+
+            loadCartBySelectedMeja();
+        } else {
+            document.getElementById('lbl-type-standalone').className =
+                'form-check form-check-inline m-0 btn w-100 p-2 border active-type-btn';
+            document.getElementById('lbl-type-table').className =
+                'form-check form-check-inline m-0 btn w-100 p-2 border text-muted';
+            document.getElementById('box-select-table').classList.add('d-none');
+            document.getElementById('box-input-name').classList.remove('d-none');
+
+            cart = [];
             renderCart();
         }
+    }
 
-        // =========================================================================
-        // 4. UPDATE QUANTITY (TAMBAH / KURANG ITEM DI FORM)
-        // =========================================================================
-        function updateQty(id, delta) {
-            let item = cart.find(i => i.id === id);
-            if (item) {
-                // Jika data lama dari DB dikurangi sampai 0, arahkan ke fungsi delete permanent
-                if (item.qty + delta <= 0 && item.order_id) {
-                    deleteExistingOrder(item.order_id);
-                    return;
-                }
-
-                item.qty += delta;
-                if (item.qty > item.maxStock) {
-                    Swal.fire('Stok Batas!', 'Stok tidak mencukupi.', 'warning');
-                    item.qty = item.maxStock;
-                }
-                if (item.qty <= 0) {
-                    cart = cart.filter(i => i.id !== id);
-                }
+    // =========================================================================
+    // 3. TAMBAH PRODUK KE KERANJANG (DARI KLIK MENU SISI KIRI)
+    // =========================================================================
+    function addToCart(id, name, price, maxStock) {
+        let existing = cart.find(item => item.id === id && (!item.is_package_include && !item.is_package_item));
+        if (existing) {
+            if (existing.qty >= maxStock) {
+                Swal.fire('Stok Habis!', 'Jumlah melebihi stok produk yang tersedia.', 'warning');
+                return;
             }
-            renderCart();
+            existing.qty += 1;
+            existing.subtotal = existing.qty * existing.price;
+        } else {
+            if (maxStock < 1) {
+                Swal.fire('Stok Habis!', 'Produk tidak tersedia.', 'warning');
+                return;
+            }
+            cart.push({
+                id: id,
+                name: name,
+                product_name: name,
+                price: parseFloat(price),
+                qty: 1,
+                subtotal: parseFloat(price),
+                maxStock: maxStock,
+                is_package_include: false,
+                is_package_item: false
+            });
         }
+        renderCart();
+    }
 
-        // =========================================================================
-        // 5. RENDER CART KE SIDEBAR KANAN (TAMPILAN UTAMA POS)
-        // =========================================================================
-        function renderCart() {
-            const emptyState = document.getElementById('cart-empty-state');
-            const cartList = document.getElementById('cart-table-list');
-            const body = document.getElementById('cart-table-body');
-            const totalText = document.getElementById('cart-total-text');
-
-            if (cart.length === 0) {
-                emptyState.classList.remove('d-none');
-                cartList.classList.add('d-none');
-                totalText.innerText = 'Rp 0';
+    // =========================================================================
+    // 4. UPDATE QUANTITY (TAMBAH / KURANG ITEM)
+    // =========================================================================
+    function updateQty(id, delta) {
+        let item = cart.find(i => i.id === id && (!i.is_package_include && !i.is_package_item));
+        if (item) {
+            if (item.qty + delta <= 0 && item.order_id) {
+                deleteExistingOrder(item.order_id);
                 return;
             }
 
-            emptyState.classList.add('d-none');
-            cartList.classList.remove('d-none');
+            item.qty += delta;
+            if (item.qty > item.maxStock) {
+                Swal.fire('Stok Batas!', 'Stok tidak mencukupi.', 'warning');
+                item.qty = item.maxStock;
+            }
+            item.subtotal = item.qty * item.price;
 
-            let html = '';
-            let total = 0;
+            if (item.qty <= 0) {
+                cart = cart.filter(i => !(i.id === id && (!i.is_package_include && !i.is_package_item)));
+            }
+        }
+        renderCart();
+    }
 
-            cart.forEach(item => {
-                let subtotal = item.price * item.qty;
-                total += subtotal;
+    // =========================================================================
+    // 5. RENDER CART KE SIDEBAR KANAN
+    // =========================================================================
+    function renderCart() {
+        let html = '';
+        let grandTotal = 0;
 
-                // Cek apakah data ini pesanan tersimpan di DB atau menu baru di-klik kasir
-                const isSaved = item.hasOwnProperty('order_id');
+        const emptyState = document.getElementById('cart-empty-state');
+        const tableList = document.getElementById('cart-table-list');
+        const tbody = document.getElementById('cart-table-body');
+        const totalText = document.getElementById('cart-total-text');
 
-                html += `
-            <tr class="border-bottom">
-                <td class="p-2 text-start">
-                    <div class="fw-bold text-dark">
-                        ${item.name}
-                        ${isSaved ? '<span class="badge bg-green-lt ms-1">Saved</span>' : '<span class="badge bg-blue-lt ms-1">Baru</span>'}
-                    </div>
-                    <div class="text-muted small">Rp ${item.price.toLocaleString('id-ID')}</div>
+        if (cart.length === 0) {
+            if(emptyState) emptyState.classList.remove('d-none');
+            if(tableList) tableList.classList.add('d-none');
+            if(totalText) totalText.innerText = 'Rp 0';
+            return;
+        }
+
+        if(emptyState) emptyState.classList.add('d-none');
+        if(tableList) tableList.classList.remove('d-none');
+
+        cart.forEach(function(item) {
+            let itemName = item.product_name || item.name;
+            // Gunakan is_package_include dari Controller
+            let isPackage = item.is_package_include || item.is_package_item || parseFloat(item.price) === 0;
+            let itemSubtotal = item.subtotal !== undefined ? item.subtotal : (item.price * item.qty);
+
+            // Format bentuk Table <tr> sesuai Blade kamu
+            html += `
+            <tr>
+                <td class="text-start ps-0">
+                    <div class="fw-bold text-dark">${itemName} ${isPackage ? '<span class="badge bg-success text-white small ms-1">Include Paket</span>' : ''}</div>
+                    <div class="text-muted small">Rp ${numberFormat(item.price)}</div>
                 </td>
-                <td class="p-2">
-                    <div class="input-group input-group-sm" style="width: 90px; margin: 0 auto;">
-                        <button class="btn btn-outline-secondary px-2 py-0" type="button" onclick="updateQty(${item.id}, -1)">-</button>
-                        <input type="text" class="form-control text-center bg-white p-0 fw-bold text-dark" value="${item.qty}" readonly>
-                        <button class="btn btn-outline-secondary px-2 py-0" type="button" onclick="updateQty(${item.id}, 1)">+</button>
-                    </div>
+                <td style="width: 110px;">
+                    ${isPackage ? `
+                        <div class="text-center fw-bold text-muted">${item.qty} Pcs</div>
+                    ` : `
+                        <div class="input-group input-group-sm">
+                            <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, -1)">-</button>
+                            <input type="text" class="form-control text-center px-0 fw-bold" value="${item.qty}" readonly>
+                            <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, 1)">+</button>
+                        </div>
+                    `}
                 </td>
-                <td class="p-2 text-end fw-bold text-primary">
-                    Rp ${subtotal.toLocaleString('id-ID')}
-                </td>
-                <td class="p-2 text-center">
-                    ${isSaved ?
-                        `<button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="deleteExistingOrder(${item.order_id})">
-                                <i class="ti ti-trash fs-2"></i>
-                             </button>` :
-                        `<button type="button" class="btn btn-sm btn-link text-muted p-0" onclick="removeLocalItem(${item.id})">
-                                <i class="ti ti-x fs-2"></i>
-                             </button>`
-                    }
+                <td class="text-end fw-bold pe-0 text-dark">
+                    Rp ${numberFormat(itemSubtotal)}
                 </td>
             </tr>
             `;
-            });
 
-            body.innerHTML = html;
-            totalText.innerText = 'Rp ' + total.toLocaleString('id-ID');
-        }
+            grandTotal += parseFloat(itemSubtotal);
+        });
 
-        // Fungsi menghapus item yang baru di-klik kasir (belum masuk DB)
-        function removeLocalItem(id) {
-            cart = cart.filter(i => i.id !== id);
-            renderCart();
-        }
-
-        // =========================================================================
-        // 6. DELETE: HAPUS PERMANEN PESANAN DARI DATABASE DENGAN SWEETALERT
-        // =========================================================================
-        function deleteExistingOrder(orderId) {
-            Swal.fire({
-                title: 'Hapus Menu Pesanan?',
-                text: "Item akan dihapus dari meja secara permanen dan stok akan dikembalikan!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Ya, Hapus!',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({
-                        title: 'Menghapus...',
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
-                    });
-
-                    fetch(`/admin/orderfnb/delete-item/${orderId}`, {
-                            method: 'DELETE',
-                            headers: {
-                                'X-CSRF-TOKEN': "{{ csrf_token() }}",
-                                'Accept': 'application/json'
-                            }
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            Swal.close();
-                            if (data.success) {
-                                Swal.fire('Terhapus!', data.message, 'success');
-                                // Ambil ulang data keranjang ter-update dari server
-                                loadCartBySelectedMeja();
-                            } else {
-                                Swal.fire('Gagal!', data.message, 'error');
-                            }
-                        })
-                        .catch(err => {
-                            Swal.close();
-                            Swal.fire('Error!', 'Gagal menghubungi server.', 'error');
-                        });
-                }
-            });
-        }
-
-        // =========================================================================
-        // 7. READ: AMBIL DATA ORDERAN MEJA SECARA REAL-TIME JIKA DROPDOWN / URL BERUBAH
-        // =========================================================================
-        function loadCartBySelectedMeja() {
-    const selectMeja = document.getElementById('select-meja-fnb');
-    if (!selectMeja) return;
-
-    const transactionId = selectMeja.value;
-    const selectedOption = selectMeja.options[selectMeja.selectedIndex];
-
-    if (!transactionId || !selectedOption) {
-        cart = [];
-        renderCart();
-        return;
+        if(tbody) tbody.innerHTML = html;
+        if(totalText) totalText.innerText = 'Rp ' + numberFormat(grandTotal);
     }
 
-    // Ambil ID Meja murni dari data-attribute yang sudah kita buat di atas
-    const poolTableId = selectedOption.getAttribute('data-table-id');
+    // =========================================================================
+    // 6. DELETE EXISTING ORDER DARI DATABASE
+    // =========================================================================
+    function deleteExistingOrder(orderId) {
+        Swal.fire({
+            title: 'Hapus Menu Pesanan?',
+            text: "Item akan dihapus dari meja secara permanen!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Menghapus...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
 
-    if (!poolTableId) return;
-
-    Swal.fire({
-        title: 'Memuat Menu Meja...',
-        allowOutsideClick: false,
-        didOpen: () => { Swal.showLoading(); }
-    });
-
-    fetch(`/admin/orderfnb/current-cart/${poolTableId}`)
-        .then(res => res.json())
-        .then(data => {
-            Swal.close();
-            cart = data.map(item => {
-                return {
-                    id: item.id,
-                    order_id: item.order_id,
-                    name: item.name,
-                    price: item.price,
-                    qty: item.qty,
-                    maxStock: 999
-                };
-            });
-            renderCart();
-        })
-        .catch(err => {
-            Swal.close();
-            console.error("Gagal memuat item keranjang meja:", err);
-        });
-}
-
-        // Hubungkan fungsi load data ke event change dropdown secara manual
-        document.getElementById('select-meja-fnb').addEventListener('change', loadCartBySelectedMeja);
-
-        // =========================================================================
-        // 8. UPDATE / SUBMIT ORDER (CHECKOUT NOTA) DENGAN SWEETALERT
-        // =========================================================================
-        function checkoutOrder() {
-            if (cart.length === 0) {
-                Swal.fire('Keranjang Kosong!', 'Pilih menu makanan dulu sebelum proses.', 'info');
-                return;
-            }
-
-            const type = document.querySelector('input[name="order_type"]:checked').value;
-            let payload = {
-                order_type: type,
-                items: cart.map(i => ({
-                    id: i.id,
-                    qty: i.qty
-                })),
-                _token: "{{ csrf_token() }}"
-            };
-
-            if (type === 'table') {
-                const txId = document.getElementById('select-meja-fnb').value;
-                if (!txId) {
-                    Swal.fire('Pilih Meja!', 'Tentukan nomor meja billing yang dituju.', 'warning');
-                    return;
-                }
-                payload.transaction_id = txId;
-            } else {
-                const name = document.getElementById('inp_customer_name').value.trim();
-                if (!name) {
-                    Swal.fire('Nama Kosong!', 'Isi nama customer walk-in / waiting list.', 'warning');
-                    return;
-                }
-                payload.customer_name = name;
-            }
-
-            Swal.fire({
-                title: 'Memproses Nota...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            fetch("{{ route('admin.orderfnb.store') }}", {
-                    method: 'POST',
+                fetch(`/admin/orderfnb/delete-item/${orderId}`, {
+                    method: 'DELETE',
                     headers: {
-                        'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': "{{ csrf_token() }}",
                         'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
+                    }
                 })
                 .then(res => res.json())
                 .then(data => {
                     Swal.close();
                     if (data.success) {
-                        Swal.fire({
-                            title: 'Berhasil!',
-                            text: data.message,
-                            icon: 'success'
-                        }).then(() => {
-                            if (type === 'table') {
-                                // Kuncinya disini: Refresh data ter-update saja tanpa me-reload paksa halaman!
-                                loadCartBySelectedMeja();
-                            } else {
-                                cart = [];
-                                renderCart();
-                                document.getElementById('inp_customer_name').value = '';
-                            }
-                        });
+                        Swal.fire('Terhapus!', data.message, 'success');
+                        loadCartBySelectedMeja();
                     } else {
                         Swal.fire('Gagal!', data.message, 'error');
                     }
                 })
                 .catch(err => {
                     Swal.close();
-                    Swal.fire('Sistem Error!', 'Terjadi gangguan koneksi ke server.', 'error');
+                    Swal.fire('Error!', 'Gagal menghubungi server.', 'error');
                 });
-        }
-
-        // =========================================================================
-        // 9. AUTOMATIC RUN ON LOAD (SAAT KLIK + FNB DARI MONITORING DASHBOARD)
-        // =========================================================================
-        document.addEventListener("DOMContentLoaded", function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            // Dashboard mengirim parameter '?table_id='
-            const tableIdFromUrl = urlParams.get('table_id');
-
-            if (tableIdFromUrl) {
-                toggleType('table');
-
-                const selectMeja = document.getElementById('select-meja-fnb');
-                if (selectMeja) {
-                    setTimeout(() => {
-                        for (let i = 0; i < selectMeja.options.length; i++) {
-                            let opt = selectMeja.options[i];
-                            // COCOKKAN isi option dengan parameter URL pengirim
-                            if (opt.text.toLowerCase().includes(`meja ${tableIdFromUrl}`)) {
-                                selectMeja.value = opt.value;
-                                // Trigger pemanggilan data otomatis
-                                loadCartBySelectedMeja();
-                                break;
-                            }
-                        }
-                    }, 150);
-                }
             }
         });
-    </script>
+    }
+
+    // =========================================================================
+    // 7. READ: AMBIL DATA ORDERAN MEJA REAL-TIME
+    // =========================================================================
+    function loadCartBySelectedMeja() {
+        const selectMeja = document.getElementById('select-meja-fnb');
+        if (!selectMeja) return;
+
+        const selectedOption = selectMeja.options[selectMeja.selectedIndex];
+
+        if (!selectMeja.value || !selectedOption) {
+            cart = [];
+            renderCart();
+            return;
+        }
+
+        const poolTableId = selectedOption.getAttribute('data-table-id') || selectMeja.value;
+
+        Swal.fire({
+            title: 'Memuat Menu...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        fetch(`/admin/orderfnb/current-cart/${poolTableId}`)
+            .then(res => res.json())
+            .then(data => {
+                Swal.close();
+                cart = data.map(item => {
+                    return {
+                        id: item.id || item.product_id,
+                        order_id: item.order_id,
+                        name: item.name || item.product_name,
+                        product_name: item.name || item.product_name,
+                        price: parseFloat(item.price),
+                        qty: item.qty,
+                        subtotal: item.subtotal !== undefined ? parseFloat(item.subtotal) : (parseFloat(item.price) * item.qty),
+                        is_package_include: item.is_package_include || parseFloat(item.price) === 0,
+                        maxStock: 999
+                    };
+                });
+                renderCart();
+            })
+            .catch(err => {
+                Swal.close();
+                console.error("Gagal memuat item keranjang meja:", err);
+            });
+    }
+
+    // Event listener saat dropdown meja diganti
+    const selectMejaEl = document.getElementById('select-meja-fnb');
+    if (selectMejaEl) {
+        selectMejaEl.addEventListener('change', loadCartBySelectedMeja);
+    }
+
+    // =========================================================================
+    // 8. SUBMIT ORDER
+    // =========================================================================
+    function checkoutOrder() {
+        if (cart.length === 0) {
+            Swal.fire('Keranjang Kosong!', 'Pilih menu makanan dulu sebelum proses.', 'info');
+            return;
+        }
+
+        const type = document.querySelector('input[name="order_type"]:checked').value;
+
+        // Jangan proses item yang statusnya include paket
+        let itemsToProcess = cart.filter(function(item) {
+            return !item.is_package_include && !item.is_package_item && parseFloat(item.price) > 0;
+        });
+
+        if (type === 'table' && itemsToProcess.length === 0) {
+            Swal.fire('Tidak Ada Pesanan Baru!', 'Belum ada item FnB berbayar baru yang ditambahkan.', 'info');
+            return;
+        }
+
+        let payload = {
+            order_type: type,
+            items: itemsToProcess.map(i => ({
+                id: i.id,
+                qty: i.qty
+            })),
+            _token: "{{ csrf_token() }}"
+        };
+
+        if (type === 'table') {
+            const txId = document.getElementById('select-meja-fnb').value;
+            if (!txId) {
+                Swal.fire('Pilih Meja!', 'Tentukan nomor meja billing yang dituju.', 'warning');
+                return;
+            }
+            payload.transaction_id = txId;
+        } else {
+            const name = document.getElementById('inp_customer_name').value.trim();
+            if (!name) {
+                Swal.fire('Nama Kosong!', 'Isi nama customer walk-in.', 'warning');
+                return;
+            }
+            payload.customer_name = name;
+        }
+
+        Swal.fire({
+            title: 'Memproses Nota...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        fetch("{{ route('admin.orderfnb.store') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            Swal.close();
+            if (data.success) {
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: data.message,
+                    icon: 'success'
+                }).then(() => {
+                    if (type === 'table') {
+                        loadCartBySelectedMeja();
+                    } else {
+                        cart = [];
+                        renderCart();
+                        document.getElementById('inp_customer_name').value = '';
+                    }
+                });
+            } else {
+                Swal.fire('Gagal!', data.message, 'error');
+            }
+        })
+        .catch(err => {
+            Swal.close();
+            Swal.fire('Sistem Error!', 'Terjadi gangguan koneksi ke server.', 'error');
+        });
+    }
+
+    // =========================================================================
+    // 9. AUTOMATIC RUN ON LOAD
+    // =========================================================================
+    document.addEventListener("DOMContentLoaded", function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tableIdFromUrl = urlParams.get('table_id');
+
+        if (tableIdFromUrl) {
+            toggleType('table');
+
+            const selectMeja = document.getElementById('select-meja-fnb');
+            if (selectMeja) {
+                for (let i = 0; i < selectMeja.options.length; i++) {
+                    let opt = selectMeja.options[i];
+                    if (opt.getAttribute('data-table-id') == tableIdFromUrl || opt.text.toUpperCase().includes(`MEJA ${tableIdFromUrl}`)) {
+                        selectMeja.selectedIndex = i;
+                        break;
+                    }
+                }
+                loadCartBySelectedMeja();
+            }
+        }
+    });
+</script>
 @endsection

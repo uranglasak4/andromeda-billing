@@ -9,9 +9,25 @@ class Package extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'price', 'day_type', 'active_from', 'active_to', 'duration_type', 'duration_value'];
+    protected $fillable = [
+        'name',
+        'price',
+        'day_type',
+        'active_from',
+        'active_to',
+        'duration_type',
+        'duration_value',
+    ];
 
-    public function transactions() {
+    public function transactions()
+    {
         return $this->hasMany(Transaction::class);
+    }
+
+    public function fnbProducts()
+    {
+        return $this->belongsToMany(FnbProduct::class, 'package_fnb_product')
+            ->withPivot('quantity')
+            ->withTimestamps();
     }
 }

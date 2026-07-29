@@ -121,6 +121,7 @@
             <div class="modal-content">
                 <form id="form-open-table" method="POST">
                     @csrf
+                    <input type="hidden" name="package_id" id="input-package-id" value="">
                     <div class="modal-body">
                         <div class="modal-title h3">Open Table Meja <span id="display-no-meja"></span></div>
                         <div class="mb-3">
@@ -139,7 +140,7 @@
                                 <optgroup label="Paket Promo">
                                     @foreach ($packages as $package)
                                         <option value="{{ $package->duration_value }}" data-type="package"
-                                            data-price="{{ $package->price }}">
+                                            data-price="{{ $package->price }}" data-package-id="{{ $package->id }}">
                                             {{ $package->name }}
                                         </option>
                                     @endforeach
@@ -527,7 +528,6 @@
             document.getElementById('option-no-meja').innerText = number;
             document.getElementById('from-table-id').value = id;
 
-            // Reset input nama dan ID transaksi aktif
             document.getElementById('option-customer-name-input').value = "";
             window.currentActiveTransactionId = null;
 
@@ -549,67 +549,98 @@
             txtBillingPrice.innerText = "Rp 0";
             txtGrandTotal.innerText = "Rp 0";
 
-            // Memanggil API detail transaksi aktif
             fetch(`/admin/billing/active-detail/${id}`)
                 .then(res => {
                     if (!res.ok) throw new Error('Server Return Error');
                     return res.json();
                 })
                 .then(data => {
-                    // Masukkan nama customer dan ID Transaksi dari database ke Invoice Header
                     if (data.success) {
                         document.getElementById('option-customer-name-input').value = data.customer_name || 'GUEST';
                         window.currentActiveTransactionId = data.transaction_id;
-                    }
 
-                    if (data.success && data.fnb_orders.length > 0) {
-                        let htmlRows = '';
-                        let totalQty = 0;
+                        // =========================================================================
+                        // PERBAIKAN: HITUNG BIAYA BILLING MEJA (PERSONAL / HOURLY / PACKAGE)
+                        // =========================================================================
+                        let billingPrice = parseInt(data.billing_price) || 0;
+
+                        // Jika billing_price dari backend 0/null, kalkulasi durasi berjalan secara real-time
+                        if (billingPrice === 0 && data.start_time) {
+                            const startTime = new Date(data.start_time).getTime();
+                            const now = new Date().getTime();
+                            const diffMinutes = Math.max(Math.ceil((now - startTime) / 60000), 1); // minimal 1 menit
+                            const hourlyRate = parseInt(data.hourly_rate) || 29000; // default rate per jam
+                            const minCharge = parseInt(data.min_charge) || 10000;   // minimum charge personal
+
+                            if (data.type === 'personal' || data.type === 'open') {
+                                // Hitung per menit dari tarif jam
+                                let calculated = Math.ceil((diffMinutes / 60) * hourlyRate);
+                                billingPrice = Math.max(calculated, minCharge);
+                            } else if (data.type === 'hourly' || data.type === 'manual') {
+                                let calculated = Math.ceil((diffMinutes / 60) * hourlyRate);
+                                billingPrice = calculated;
+                            }
+                        }
+
+                        txtBillingPrice.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
+
                         let totalFnbPrice = 0;
 
-                        data.fnb_orders.forEach(item => {
-                            totalQty += item.qty;
-                            totalFnbPrice += item.subtotal;
+                        if (data.fnb_orders && data.fnb_orders.length > 0) {
+                            let htmlRows = '';
+                            let totalQty = 0;
 
-                            htmlRows += `
+                            data.fnb_orders.forEach(item => {
+                                let itemPrice = parseInt(item.price) || 0;
+                                let itemSubtotal = parseInt(item.subtotal) || 0;
+                                let itemQty = parseInt(item.qty) || 0;
+
+                                totalQty += itemQty;
+                                totalFnbPrice += itemSubtotal;
+
+                                let priceDisplay = item.is_package_item ?
+                                    `<span class="badge bg-green-lt">Include Paket (Rp 0)</span>` :
+                                    `Rp ${itemPrice.toLocaleString('id-ID')} × ${itemQty}`;
+
+                                let subtotalDisplay = item.is_package_item ?
+                                    `<span class="text-success fw-bold">Rp 0</span>` :
+                                    `Rp ${itemSubtotal.toLocaleString('id-ID')}`;
+
+                                htmlRows += `
                                 <tr class="fw-bold text-dark">
                                     <td>
                                         <div>${item.product_name}</div>
                                         <div class="text-muted small" style="font-size: 0.75rem;">
-                                            Rp ${parseInt(item.price).toLocaleString('id-ID')} × ${item.qty}
+                                            ${priceDisplay}
                                         </div>
                                     </td>
-                                    <td class="text-center valign-middle pt-3">
-                                        <span class="badge bg-azure-lt fw-bold">${item.qty} Pcs</span>
+                                    <td class="text-center valign-middle pt-2">
+                                        <span class="badge bg-azure-lt fw-bold">${itemQty} Pcs</span>
                                     </td>
-                                    <td class="text-end text-monospace valign-middle pt-3">
-                                        Rp ${parseInt(item.subtotal).toLocaleString('id-ID')}
+                                    <td class="text-end text-monospace valign-middle pt-2">
+                                        ${subtotalDisplay}
+                                    </td>
+                                </tr>
+                                `;
+                            });
+
+                            tableBody.innerHTML = htmlRows;
+                            txtTotalQty.innerText = `${totalQty} Pcs`;
+                            txtTotalPrice.innerText = `Rp ${totalFnbPrice.toLocaleString('id-ID')}`;
+
+                        } else {
+                            tableBody.innerHTML = `
+                                <tr>
+                                    <td colspan="3" class="text-center py-3 text-muted italic">
+                                        Tidak ada pesanan FnB di meja ini.
                                     </td>
                                 </tr>
                             `;
-                        });
+                        }
 
-                        tableBody.innerHTML = htmlRows;
-                        txtTotalQty.innerText = `${totalQty} Pcs`;
-                        txtTotalPrice.innerText = `Rp ${totalFnbPrice.toLocaleString('id-ID')}`;
-
-                        let billingPrice = parseInt(data.billing_price) || 0;
-                        txtBillingPrice.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
-
+                        // Grand Total = Total FnB + Biaya Billing Meja (Personal/Hourly/Package)
                         let grandTotal = totalFnbPrice + billingPrice;
                         txtGrandTotal.innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
-
-                    } else {
-                        tableBody.innerHTML = `
-                            <tr>
-                                <td colspan="3" class="text-center py-3 text-muted italic">
-                                    Tidak ada pesanan FnB (Belum Lunas) di meja ini.
-                                </td>
-                            </tr>
-                        `;
-                        let billingPrice = data.billing_price ? parseInt(data.billing_price) : 0;
-                        txtBillingPrice.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
-                        txtGrandTotal.innerText = `Rp ${billingPrice.toLocaleString('id-ID')}`;
                     }
                 })
                 .catch(err => {
@@ -770,9 +801,11 @@
             const selectedOption = selector.options[selector.selectedIndex];
             const type = selectedOption.getAttribute('data-type');
             const manualContainer = document.getElementById('manual-duration-container');
+            const inputPackageId = document.getElementById('input-package-id');
 
-            // Reset tampilan input manual
+            // Reset default
             manualContainer.classList.add('d-none');
+            if (inputPackageId) inputPackageId.value = '';
 
             if (type === 'manual') {
                 manualContainer.classList.remove('d-none');
@@ -782,6 +815,11 @@
                 document.getElementById('display-harga').innerText = minCharge.toLocaleString('id-ID');
             } else if (type === 'package') {
                 const price = selectedOption.getAttribute('data-price');
+                const pkgId = selectedOption.getAttribute('data-package-id');
+
+                // 🚀 Set package_id ke input hidden
+                if (inputPackageId) inputPackageId.value = pkgId;
+
                 document.getElementById('display-harga').innerText = parseInt(price).toLocaleString('id-ID');
             }
         }

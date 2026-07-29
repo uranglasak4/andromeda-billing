@@ -41,8 +41,13 @@ class MasterController extends Controller
     public function pricingIndex()
     {
         $rules = PricingRule::all();
-        $packages = Package::all();
-        return view('master.pricing', compact('rules', 'packages'));
+        $packages = Package::with('fnbProducts')->get(); // Mengambil paket beserta relasi FnB-nya
+
+        // 🔴 KUNCI PERBAIKAN: Ambil semua data produk FnB dari database
+        $allFnbProducts = \App\Models\FnbProduct::orderBy('name', 'asc')->get();
+
+        // Passing variabel $allFnbProducts ke view pricing.blade.php
+        return view('master.pricing', compact('rules', 'packages', 'allFnbProducts'));
     }
 
     public function pricingUpdate(Request $request, $id)
@@ -151,15 +156,70 @@ class MasterController extends Controller
 
     public function packageStore(Request $request)
     {
-        Package::create($request->all());
-        return back()->with('success', 'Paket promo baru berhasil ditambahkan!');
+        $request->validate([
+            'name' => 'required|string',
+            'price' => 'required|numeric',
+            'day_type' => 'required',
+            'active_from' => 'required',
+            'active_to' => 'required',
+            'duration_type' => 'required',
+            'duration_value' => 'required',
+        ]);
+
+        // 1. Simpan Data Paket (menggunakan active_from dan active_to sesuai Form Blade)
+        $package = Package::create([
+            'name' => $request->name,
+            'price' => $request->price,
+            'day_type' => $request->day_type,
+            'active_from' => $request->active_from,
+            'active_to' => $request->active_to,
+            'duration_type' => $request->duration_type,
+            'duration_value' => $request->duration_value,
+        ]);
+
+        // 2. Simpan Produk FnB Include (Jika Ada)
+        if ($request->has('fnb_products')) {
+            foreach ($request->fnb_products as $index => $fnbId) {
+                if (!empty($fnbId)) {
+                    $qty = $request->fnb_quantities[$index] ?? 1;
+                    $package->fnbProducts()->attach($fnbId, ['quantity' => $qty]);
+                }
+            }
+        }
+
+        return back()->with('success', 'Paket billing berhasil dibuat!');
     }
 
     public function packageUpdate(Request $request, $id)
     {
         $package = Package::findOrFail($id);
-        $package->update($request->all());
-        return back()->with('success', 'Paket promo berhasil diperbarui!');
+
+        // 1. Update Informasi Paket
+        $package->update([
+            'name' => $request->name,
+            'price' => $request->price,
+            'day_type' => $request->day_type,
+            'active_from' => $request->active_from,
+            'active_to' => $request->active_to,
+            'duration_type' => $request->duration_type,
+            'duration_value' => $request->duration_value,
+        ]);
+
+        // 2. Sync / Perbarui Produk FnB Include
+        $syncData = [];
+        if ($request->has('fnb_products')) {
+            foreach ($request->fnb_products as $index => $fnbId) {
+                if (!empty($fnbId)) {
+                    $qty = $request->fnb_quantities[$index] ?? 1;
+                    $syncData[$fnbId] = ['quantity' => $qty];
+                }
+            }
+        }
+
+        // sync() akan otomatis menambah, merubah qty, atau menghapus FnB yang dilepas
+        $package->fnbProducts()->sync($syncData);
+
+        return back()->with('success', 'Paket billing berhasil diperbarui!');
     }
 
     public function packageDestroy($id)
