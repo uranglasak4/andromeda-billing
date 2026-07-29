@@ -99,31 +99,10 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        // --- 4. SEED PACKAGES (Sesuai Poster Andromeda) ---
-        // Galaxy Mix Combo: 110K (4 Jam + Mix Platter)
-        Package::updateOrCreate([
-            'name' => 'Galaxy Mix Combo',
-            'price' => 110000,
-            'day_type' => 'weekday',
-            'active_from' => '11:00:00',
-            'active_to' => '15:00:00',
-            'duration_type' => 'minutes',
-            'duration_value' => '240',
-        ]);
-
-        // Vitgo: 50K (2 Jam + 2 Vit)
-        Package::updateOrCreate([
-            'name' => 'Vitgo',
-            'price' => 50000,
-            'day_type' => 'weekday',
-            'active_from' => '11:30:00',
-            'active_to' => '17:00:00',
-            'duration_type' => 'minutes',
-            'duration_value' => '120',
-        ]);
 
         $this->call([
             FnbSeeder::class,
+            PackageSeeder::class,
         ]);
 
         \App\Models\Setting::updateOrCreate(

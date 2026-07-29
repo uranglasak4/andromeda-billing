@@ -27,7 +27,7 @@ class Package extends Model
     public function fnbProducts()
     {
         return $this->belongsToMany(FnbProduct::class, 'package_fnb_product')
-            ->withPivot('quantity')
+            ->withPivot('stock')
             ->withTimestamps();
     }
 }

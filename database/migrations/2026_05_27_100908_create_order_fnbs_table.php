@@ -18,7 +18,7 @@ return new class extends Migration
         $table->foreignId('fnb_product_id')->nullable()->constrained('fnb_products')->onDelete('set null');
 
         $table->string('customer_name')->nullable(); // Untuk mencatat nama customer Waiting List / Walk-In
-        $table->integer('qty');
+        $table->integer('stock');
         $table->decimal('price', 15, 2);
         $table->decimal('subtotal', 15, 2);
 
