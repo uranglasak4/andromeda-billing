@@ -156,7 +156,7 @@
                                             <td class="text-start fw-bold text-truncate" style="max-width: 120px;">
                                                 {{ $order->fnbProduct->name ?? 'Menu Dihapus' }}
                                             </td>
-                                            <td>{{ $order->qty }}</td>
+                                            <td>{{ $order->stock }}</td>
                                             <td>
                                                 @if ($order->transaction_id)
                                                     <span class="badge bg-indigo-lt">Meja</span>
@@ -265,12 +265,12 @@
     function addToCart(id, name, price, maxStock) {
         let existing = cart.find(item => item.id === id && (!item.is_package_include && !item.is_package_item));
         if (existing) {
-            if (existing.qty >= maxStock) {
+            if (existing.stock >= maxStock) {
                 Swal.fire('Stok Habis!', 'Jumlah melebihi stok produk yang tersedia.', 'warning');
                 return;
             }
-            existing.qty += 1;
-            existing.subtotal = existing.qty * existing.price;
+            existing.stock += 1;
+            existing.subtotal = existing.stock * existing.price;
         } else {
             if (maxStock < 1) {
                 Swal.fire('Stok Habis!', 'Produk tidak tersedia.', 'warning');
@@ -281,7 +281,7 @@
                 name: name,
                 product_name: name,
                 price: parseFloat(price),
-                qty: 1,
+                stock: 1,
                 subtotal: parseFloat(price),
                 maxStock: maxStock,
                 is_package_include: false,
@@ -297,19 +297,19 @@
     function updateQty(id, delta) {
         let item = cart.find(i => i.id === id && (!i.is_package_include && !i.is_package_item));
         if (item) {
-            if (item.qty + delta <= 0 && item.order_id) {
+            if (item.stock + delta <= 0 && item.order_id) {
                 deleteExistingOrder(item.order_id);
                 return;
             }
 
-            item.qty += delta;
-            if (item.qty > item.maxStock) {
+            item.stock += delta;
+            if (item.stock > item.maxStock) {
                 Swal.fire('Stok Batas!', 'Stok tidak mencukupi.', 'warning');
-                item.qty = item.maxStock;
+                item.stock = item.maxStock;
             }
-            item.subtotal = item.qty * item.price;
+            item.subtotal = item.stock * item.price;
 
-            if (item.qty <= 0) {
+            if (item.stock <= 0) {
                 cart = cart.filter(i => !(i.id === id && (!i.is_package_include && !i.is_package_item)));
             }
         }
@@ -342,7 +342,7 @@
             let itemName = item.product_name || item.name;
             // Gunakan is_package_include dari Controller
             let isPackage = item.is_package_include || item.is_package_item || parseFloat(item.price) === 0;
-            let itemSubtotal = item.subtotal !== undefined ? item.subtotal : (item.price * item.qty);
+            let itemSubtotal = item.subtotal !== undefined ? item.subtotal : (item.price * item.stock);
 
             // Format bentuk Table <tr> sesuai Blade kamu
             html += `
@@ -353,11 +353,11 @@
                 </td>
                 <td style="width: 110px;">
                     ${isPackage ? `
-                        <div class="text-center fw-bold text-muted">${item.qty} Pcs</div>
+                        <div class="text-center fw-bold text-muted">${item.stock} Pcs</div>
                     ` : `
                         <div class="input-group input-group-sm">
                             <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, -1)">-</button>
-                            <input type="text" class="form-control text-center px-0 fw-bold" value="${item.qty}" readonly>
+                            <input type="text" class="form-control text-center px-0 fw-bold" value="${item.stock}" readonly>
                             <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, 1)">+</button>
                         </div>
                     `}
@@ -455,8 +455,8 @@
                         name: item.name || item.product_name,
                         product_name: item.name || item.product_name,
                         price: parseFloat(item.price),
-                        qty: item.qty,
-                        subtotal: item.subtotal !== undefined ? parseFloat(item.subtotal) : (parseFloat(item.price) * item.qty),
+                        stock: item.stock,
+                        subtotal: item.subtotal !== undefined ? parseFloat(item.subtotal) : (parseFloat(item.price) * item.stock),
                         is_package_include: item.is_package_include || parseFloat(item.price) === 0,
                         maxStock: 999
                     };
@@ -500,7 +500,7 @@
             order_type: type,
             items: itemsToProcess.map(i => ({
                 id: i.id,
-                qty: i.qty
+                stock: i.stock
             })),
             _token: "{{ csrf_token() }}"
         };

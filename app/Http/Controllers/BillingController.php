@@ -63,13 +63,13 @@ class BillingController extends Controller
 
             if ($package && $package->fnbProducts->count() > 0) {
                 foreach ($package->fnbProducts as $fnb) {
-                    $includeQty = $fnb->pivot->quantity ?? 1;
+                    $includeQty = $fnb->pivot->stock ?? 1;
 
                     \App\Models\OrderFnb::create([
                         'transaction_id' => $transaction->id,
                         'fnb_product_id' => $fnb->id,
                         'customer_name' => $transaction->customer_name,
-                        'qty' => $includeQty,
+                        'stock' => $includeQty,
                         'price' => 0, // Rp 0 bawaan paket
                         'subtotal' => 0,
                         'payment_status' => 'unpaid',
@@ -220,13 +220,13 @@ class BillingController extends Controller
                 $package = \App\Models\Package::with('fnbProducts')->find($packageId);
                 if ($package && $package->fnbProducts->count() > 0) {
                     foreach ($package->fnbProducts as $fnb) {
-                        $includeQty = $fnb->pivot->quantity ?? 1;
+                        $includeQty = $fnb->pivot->stock ?? 1;
 
                         \App\Models\OrderFnb::create([
                             'transaction_id' => $transaction->id,
                             'fnb_product_id' => $fnb->id,
                             'customer_name' => $transaction->customer_name,
-                            'qty' => $includeQty,
+                            'stock' => $includeQty,
                             'price' => 0,
                             'subtotal' => 0,
                             'payment_status' => 'unpaid',
@@ -299,7 +299,7 @@ class BillingController extends Controller
                     'id' => $order->fnb_product_id,
                     'product_name' => $order->fnbProduct->name ?? 'Produk FnB',
                     'price' => (int) $order->price,
-                    'qty' => (int) $order->qty,
+                    'stock' => (int) $order->stock,
                     'subtotal' => (int) $order->subtotal,
                     'is_package_item' => $isPkg
                 ];

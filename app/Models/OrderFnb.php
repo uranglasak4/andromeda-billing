@@ -13,7 +13,7 @@ class OrderFnb extends Model
         'transaction_id',
         'fnb_product_id',
         'customer_name',
-        'qty',
+        'stock',
         'price',
         'subtotal',
         'payment_status'

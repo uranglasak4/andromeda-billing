@@ -181,8 +181,8 @@ class MasterController extends Controller
         if ($request->has('fnb_products')) {
             foreach ($request->fnb_products as $index => $fnbId) {
                 if (!empty($fnbId)) {
-                    $qty = $request->fnb_quantities[$index] ?? 1;
-                    $package->fnbProducts()->attach($fnbId, ['quantity' => $qty]);
+                    $stock = $request->fnb_quantities[$index] ?? 1;
+                    $package->fnbProducts()->attach($fnbId, ['stock' => $stock]);
                 }
             }
         }
@@ -210,13 +210,13 @@ class MasterController extends Controller
         if ($request->has('fnb_products')) {
             foreach ($request->fnb_products as $index => $fnbId) {
                 if (!empty($fnbId)) {
-                    $qty = $request->fnb_quantities[$index] ?? 1;
-                    $syncData[$fnbId] = ['quantity' => $qty];
+                    $stock = $request->fnb_quantities[$index] ?? 1;
+                    $syncData[$fnbId] = ['stock' => $stock];
                 }
             }
         }
 
-        // sync() akan otomatis menambah, merubah qty, atau menghapus FnB yang dilepas
+        // sync() akan otomatis menambah, merubah stock, atau menghapus FnB yang dilepas
         $package->fnbProducts()->sync($syncData);
 
         return back()->with('success', 'Paket billing berhasil diperbarui!');

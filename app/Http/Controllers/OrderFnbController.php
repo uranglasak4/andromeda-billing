@@ -50,7 +50,7 @@ class OrderFnbController extends Controller
             if (!$product)
                 continue;
 
-            $inputQty = (int) $item['qty'];
+            $inputQty = (int) $item['stock'];
             $price = (float) $product->price;
 
             // Cari apakah pesanan FnB berbayar untuk produk ini sudah ada di transaksi
@@ -64,7 +64,7 @@ class OrderFnbController extends Controller
                 $qtyDiff = $inputQty - $existingOrder->qty;
 
                 $existingOrder->update([
-                    'qty' => $inputQty,
+                    'stock' => $inputQty,
                     'subtotal' => $inputQty * $price
                 ]);
 
@@ -78,7 +78,7 @@ class OrderFnbController extends Controller
                     'transaction_id' => $transaction->id,
                     'fnb_product_id' => $product->id,
                     'customer_name' => $transaction->customer_name,
-                    'qty' => $inputQty,
+                    'stock' => $inputQty,
                     'price' => $price,
                     'subtotal' => $inputQty * $price,
                     'payment_status' => 'unpaid'
@@ -117,7 +117,7 @@ class OrderFnbController extends Controller
                 'order_id' => $order->id,
                 'name' => ($order->fnbProduct->name ?? 'Menu') . ($isIncludePackage ? ' (Include Paket)' : ''),
                 'price' => (int) $order->price,
-                'qty' => (int) $order->qty,
+                'stock' => (int) $order->stock,
                 'subtotal' => (int) $order->subtotal,
                 'is_package_include' => $isIncludePackage
             ];
@@ -140,7 +140,7 @@ class OrderFnbController extends Controller
             }
 
             if ($order->fnbProduct) {
-                $order->fnbProduct->increment('stock', $order->qty);
+                $order->fnbProduct->increment('stock', $order->stock);
             }
 
             $order->delete();
@@ -184,7 +184,7 @@ class OrderFnbController extends Controller
                     'order_id' => $order->id,
                     'name' => ($order->fnbProduct->name ?? 'Produk Terhapus') . ($isIncludePackage ? ' (Include Paket)' : ''),
                     'price' => (int) $order->price,
-                    'qty' => (int) $order->qty,
+                    'stock' => (int) $order->stock,
                     'is_package_include' => $isIncludePackage
                 ];
             });
