@@ -128,20 +128,93 @@
                             <label class="form-label">Nama Customer</label>
                             <input type="text" name="customer_name" class="form-control" placeholder="Nama..." required>
                         </div>
+                        @php
+                            use Carbon\Carbon;
+
+                            // Ambil waktu & hari saat ini secara dinamis
+                            $now = Carbon::now();
+                            $currentTime = $now->format('H:i:s');
+                            $todayISO = (string) $now->dayOfWeekIso; // 1 = Senin, ..., 7 = Minggu
+
+                            // Ambil daftar active_days dari tabel pricing_rules berdasarkan day_type
+                            $weekdayRule = \App\Models\PricingRule::where('day_type', 'weekday')->first();
+                            $weekendRule = \App\Models\PricingRule::where('day_type', 'weekend')->first();
+
+                            $weekdayDays =
+                                $weekdayRule && $weekdayRule->active_days
+                                    ? explode(',', $weekdayRule->active_days)
+                                    : ['1', '2', '3', '4'];
+
+                            $weekendDays =
+                                $weekendRule && $weekendRule->active_days
+                                    ? explode(',', $weekendRule->active_days)
+                                    : ['5', '6', '7'];
+
+                            // Cek apakah hari ini masuk kategori Weekday atau Weekend berdasarkan DB pricing_rules
+                            $isTodayWeekday = in_array($todayISO, $weekdayDays);
+                            $isTodayWeekend = in_array($todayISO, $weekendDays);
+                        @endphp
+
                         <div class="mb-3">
                             <label class="form-label">Pilih Billing</label>
                             <select id="billing-selector" name="duration" class="form-select"
                                 onchange="handleBillingSelection()" required>
                                 <option value="" disabled selected>-- Pilih Durasi/Paket --</option>
+
                                 <optgroup label="Custom">
                                     <option value="manual" data-type="manual">Per Jam (Input Manual)</option>
                                     <option value="personal" data-type="personal">Personal (Open Time)</option>
                                 </optgroup>
+
                                 <optgroup label="Paket Promo">
                                     @foreach ($packages as $package)
+                                        @php
+                                            $isDisabled = false;
+
+                                            // 1. Ambil jam dari database
+                                            $startTime = Carbon::parse($package->active_from)->format('H:i');
+                                            $endTime = Carbon::parse($package->active_to)->format('H:i');
+
+                                            // --- DI SINI PERUBAHANNYA: Mengubah 'both' menjadi 'Everyday' ---
+                                            $rawDayType = strtolower($package->day_type);
+                                            if ($rawDayType === 'both') {
+                                                $dayLabel = 'Everyday';
+                                            } else {
+                                                $dayLabel = ucfirst($package->day_type);
+                                            }
+
+                                            // Teks keterangan untuk dropdown
+                                            $labelNote = " ({$dayLabel} {$startTime}-{$endTime})";
+
+                                            // 2. Validasi Hari (Jika 'both' / 'Everyday', abaikan/loloskan validasi hari)
+                                            if ($rawDayType === 'weekend' && !$isTodayWeekend) {
+                                                $isDisabled = true;
+                                            } elseif ($rawDayType === 'weekday' && !$isTodayWeekday) {
+                                                $isDisabled = true;
+                                            }
+
+                                            // 3. Validasi Jam Aktif
+                                            $pkgStart = Carbon::parse($package->active_from)->format('H:i:s');
+                                            $pkgEnd = Carbon::parse($package->active_to)->format('H:i:s');
+
+                                            $isTimeValid = false;
+                                            if ($pkgStart <= $pkgEnd) {
+                                                // Rentang normal (misal 11:00:00 s/d 15:00:00)
+                                                $isTimeValid = $currentTime >= $pkgStart && $currentTime <= $pkgEnd;
+                                            } else {
+                                                // Rentang lewat tengah malam (misal 22:00:00 s/d 03:00:00)
+                                                $isTimeValid = $currentTime >= $pkgStart || $currentTime <= $pkgEnd;
+                                            }
+
+                                            if (!$isTimeValid) {
+                                                $isDisabled = true;
+                                            }
+                                        @endphp
+
                                         <option value="{{ $package->duration_value }}" data-type="package"
-                                            data-price="{{ $package->price }}" data-package-id="{{ $package->id }}">
-                                            {{ $package->name }}
+                                            data-price="{{ $package->price }}" data-package-id="{{ $package->id }}"
+                                            {{ $isDisabled ? 'disabled' : '' }}>
+                                            {{ $package->name }}{{ $labelNote }}
                                         </option>
                                     @endforeach
                                 </optgroup>
@@ -570,7 +643,7 @@
                             const now = new Date().getTime();
                             const diffMinutes = Math.max(Math.ceil((now - startTime) / 60000), 1); // minimal 1 menit
                             const hourlyRate = parseInt(data.hourly_rate) || 29000; // default rate per jam
-                            const minCharge = parseInt(data.min_charge) || 10000;   // minimum charge personal
+                            const minCharge = parseInt(data.min_charge) || 10000; // minimum charge personal
 
                             if (data.type === 'personal' || data.type === 'open') {
                                 // Hitung per menit dari tarif jam
@@ -593,7 +666,7 @@
                             data.fnb_orders.forEach(item => {
                                 let itemPrice = parseInt(item.price) || 0;
                                 let itemSubtotal = parseInt(item.subtotal) || 0;
-                                let itemQty = parseInt(item.qty) || 0;
+                                let itemQty = parseInt(item.stock) || 0;
 
                                 totalQty += itemQty;
                                 totalFnbPrice += itemSubtotal;

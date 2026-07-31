@@ -20,10 +20,13 @@ class PackageSeeder extends Seeder
         }
         Schema::enableForeignKeyConstraints();
 
-        // 1. Ambil Referensi Produk FnB dari Database
+        // 1. Ambil Referensi Produk FnB dari Database (Disesuaikan dengan FnbSeeder baru)
         $vitMineral   = FnbProduct::where('name', 'LIKE', '%Vit Mineral%')->first();
         $tehBotol     = FnbProduct::where('name', 'LIKE', '%Teh Botol%')->first();
-        $kopiSusuOri  = FnbProduct::where('name', 'LIKE', '%Kopi Susu Original Cold%')->first();
+
+        // DISESUAIKAN: Menghilangkan 'Cold' agar cocok dengan 'Kopi Susu Original'
+        $kopiSusuOri  = FnbProduct::where('name', 'LIKE', '%Kopi Susu Original%')->first();
+
         $mixPlatter   = FnbProduct::where('name', 'LIKE', '%Mix Platter%')->first();
         $riceBowl     = FnbProduct::where('name', 'LIKE', '%Nasi Ayam Geprek%')->first();
         $mieGoreng    = FnbProduct::where('name', 'LIKE', '%Mie Goreng%')->first();
@@ -37,7 +40,7 @@ class PackageSeeder extends Seeder
                 'active_to'      => '15:00:00',
                 'duration_value' => 240,
                 'items'          => [
-                    $mixPlatter?->id => ['stock' => 1] // <-- GANTI QTY MENJADI STOCK
+                    $mixPlatter?->id => ['stock' => 1]
                 ]
             ],
             [
@@ -136,9 +139,13 @@ class PackageSeeder extends Seeder
                 'duration_value' => $pkgData['duration_value'],
             ]);
 
-            $attachItems = array_filter($pkgData['items'], function ($key) {
-                return !is_null($key) && $key !== '';
-            }, ARRAY_FILTER_USE_KEY);
+            // Filter key agar ID yang null tidak ikut disinkronkan ke pivot
+            $attachItems = [];
+            foreach ($pkgData['items'] as $productId => $pivotData) {
+                if (!empty($productId)) {
+                    $attachItems[$productId] = $pivotData;
+                }
+            }
 
             if (!empty($attachItems)) {
                 $package->fnbProducts()->sync($attachItems);

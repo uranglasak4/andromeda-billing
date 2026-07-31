@@ -40,6 +40,63 @@ class BillingController extends Controller
                 $matchedPackage = \App\Models\Package::where('duration_value', $duration)->first();
                 $packageId = $matchedPackage ? $matchedPackage->id : null;
             }
+
+            // --- VALIDASI BACKEND UNTUK PAKET PROMO ---
+            if ($packageId) {
+                $package = \App\Models\Package::find($packageId);
+
+                if ($package) {
+                    $now = \Carbon\Carbon::now();
+                    $currentTime = $now->format('H:i:s');
+                    $todayISO = (string) $now->dayOfWeekIso;
+
+                    // Ambil aturan hari aktif dari pricing_rules
+                    $weekdayRule = \App\Models\PricingRule::where('day_type', 'weekday')->first();
+                    $weekendRule = \App\Models\PricingRule::where('day_type', 'weekend')->first();
+
+                    $weekdayDays = $weekdayRule && $weekdayRule->active_days
+                        ? explode(',', $weekdayRule->active_days)
+                        : ['1', '2', '3', '4'];
+
+                    $weekendDays = $weekendRule && $weekendRule->active_days
+                        ? explode(',', $weekendRule->active_days)
+                        : ['5', '6', '7'];
+
+                    $isTodayWeekday = in_array($todayISO, $weekdayDays);
+                    $isTodayWeekend = in_array($todayISO, $weekendDays);
+
+                    $pkgDayType = strtolower($package->day_type);
+
+                    // 1. Validasi Hari (Jika 'both', skip pengecekan hari karena berlaku setiap hari)
+                    if ($pkgDayType === 'weekend' && !$isTodayWeekend) {
+                        return back()->withErrors(['duration' => 'Paket promo ini hanya berlaku pada hari Weekend.']);
+                    }
+
+                    if ($pkgDayType === 'weekday' && !$isTodayWeekday) {
+                        return back()->withErrors(['duration' => 'Paket promo me ini hanya berlaku pada hari Weekday.']);
+                    }
+
+                    // 2. Validasi Jam Aktif (active_from & active_to)
+                    if ($package->active_from && $package->active_to) {
+                        $pkgStart = \Carbon\Carbon::parse($package->active_from)->format('H:i:s');
+                        $pkgEnd = \Carbon\Carbon::parse($package->active_to)->format('H:i:s');
+
+                        $isTimeValid = false;
+                        if ($pkgStart <= $pkgEnd) {
+                            // Rentang jam normal (contoh: 11:30 - 22:00)
+                            $isTimeValid = ($currentTime >= $pkgStart && $currentTime <= $pkgEnd);
+                        } else {
+                            // Rentang jam lewat tengah malam (contoh: 22:00 - 03:00)
+                            $isTimeValid = ($currentTime >= $pkgStart || $currentTime <= $pkgEnd);
+                        }
+
+                        if (!$isTimeValid) {
+                            return back()->withErrors(['duration' => 'Paket promo ini sedang tidak aktif pada jam sekarang.']);
+                        }
+                    }
+                }
+            }
+            // --- AKHIR VALIDASI BACKEND ---
         }
 
         $table->update(['status' => $statusMeja]);

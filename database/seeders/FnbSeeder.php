@@ -46,14 +46,10 @@ class FnbSeeder extends Seeder
 
         // Kategori: COFFEE BASE
         $coffeeBase = [
-            ['name' => 'Americano Hot', 'price' => 21000],
-            ['name' => 'Americano Cold', 'price' => 21000],
-            ['name' => 'Cappucino Hot', 'price' => 23000],
-            ['name' => 'Cappucino Cold', 'price' => 23000],
-            ['name' => 'Cafe Latte Hot', 'price' => 23000],
-            ['name' => 'Cafe Latte Cold', 'price' => 23000],
-            ['name' => 'Moccacino Hot', 'price' => 23000],
-            ['name' => 'Moccacino Cold', 'price' => 23000],
+            ['name' => 'Americano', 'price' => 21000],
+            ['name' => 'Cappucino', 'price' => 23000],
+            ['name' => 'Cafe Latte', 'price' => 23000],
+            ['name' => 'Moccacino', 'price' => 23000],
         ];
         foreach ($coffeeBase as $item) {
             FnbProduct::create(array_merge($item, ['fnb_category_id' => $categories['coffee_base']->id, 'hpp' => $item['price'] * 0.5, 'stock' => 100, 'min_stock' => 5]));
@@ -74,8 +70,7 @@ class FnbSeeder extends Seeder
 
         // Kategori: KOPI SUSU
         $kopiSusu = [
-            ['name' => 'Kopi Susu Original Hot', 'price' => 22000],
-            ['name' => 'Kopi Susu Original Cold', 'price' => 22000],
+            ['name' => 'Kopi Susu Original', 'price' => 22000],
             ['name' => 'Kopi Susu Aren', 'price' => 23000],
             ['name' => 'Kopi Susu Caramel', 'price' => 25000],
             ['name' => 'Kopi Susu Hazelnut', 'price' => 25000],
@@ -87,14 +82,10 @@ class FnbSeeder extends Seeder
 
         // Kategori: MILK BASE
         $milkBase = [
-            ['name' => 'Chocolate Hot', 'price' => 22000],
-            ['name' => 'Chocolate Cold', 'price' => 22000],
-            ['name' => 'Vanilla Hot', 'price' => 22000],
-            ['name' => 'Vanilla Cold', 'price' => 22000],
-            ['name' => 'Matcha Hot', 'price' => 22000],
-            ['name' => 'Matcha Cold', 'price' => 22000],
-            ['name' => 'Taro Hot', 'price' => 22000],
-            ['name' => 'Taro Cold', 'price' => 22000],
+            ['name' => 'Chocolate', 'price' => 22000],
+            ['name' => 'Vanilla', 'price' => 22000],
+            ['name' => 'Matcha', 'price' => 22000],
+            ['name' => 'Taro', 'price' => 22000],
             ['name' => 'Sweet Blueberry', 'price' => 24000],
             ['name' => 'Strawberry Milky', 'price' => 24000],
             ['name' => 'Mocca', 'price' => 24000],
@@ -105,8 +96,7 @@ class FnbSeeder extends Seeder
 
         // Kategori: TEA BASE
         $teaBase = [
-            ['name' => 'Lemon Tea Hot', 'price' => 20000],
-            ['name' => 'Lemon Tea Cold', 'price' => 20000],
+            ['name' => 'Lemon Tea', 'price' => 20000],
             ['name' => 'Lychee Tea', 'price' => 20000],
             ['name' => 'Peach Tea', 'price' => 20000],
         ];

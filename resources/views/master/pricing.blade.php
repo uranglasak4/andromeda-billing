@@ -505,7 +505,9 @@
                         wrapper.innerHTML = ''; // Clear item lama
                         if (fnbs.length > 0) {
                             fnbs.forEach(item => {
-                                appendFnbRowToEdit(wrapper, item.id, item.pivot.quantity);
+                                const qty = item.pivot ? (item.pivot.quantity || item.pivot.qty ||
+                                    item.pivot.stock) : 1;
+                                appendFnbRowToEdit(wrapper, item.id, qty);
                             });
                         } else {
                             appendFnbRowToEdit(wrapper, '', 1);
@@ -515,7 +517,7 @@
             }
 
             // Fungsi pembantu untuk membuat baris FnB di modal edit
-            function appendFnbRowToEdit(wrapper, selectedId = '', qty = 1) {
+            function appendFnbRowToEdit(wrapper, selectedId = '', stock = 1) {
                 const rowDiv = document.createElement('div');
                 rowDiv.className = 'row g-2 mb-2 edit-fnb-item-row';
                 rowDiv.innerHTML = `
@@ -526,7 +528,7 @@
                     </select>
                 </div>
                 <div class="col-3">
-                    <input type="number" name="fnb_quantities[]" class="form-control" placeholder="Qty" min="1" value="${qty}">
+                    <input type="number" name="fnb_quantities[]" class="form-control" placeholder="Qty" min="1" value="${stock}">
                 </div>
                 <div class="col-2">
                     <button type="button" class="btn btn-outline-danger w-100 remove-edit-fnb-row">✕</button>
