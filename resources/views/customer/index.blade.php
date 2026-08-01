@@ -149,17 +149,11 @@
                             </small>
                         </div>
 
-                        {{-- ✅ CLOUDFLARE TURNSTILE WIDGET --}}
-                        <div class="mb-2 d-flex justify-content-center">
-                            <div class="cf-turnstile" data-sitekey="{{ env('TURNSTILE_SITE_KEY') }}" data-theme="light"
-                                data-language="id">
-                            </div>
-                        </div>
                     </div>
                     <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-link link-secondary fw-bold"
                             data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-success fw-bold px-4" onclick="return validateTurnstile()">
+                        <button type="submit" class="btn btn-success fw-bold px-4">
                             Ambil Antrean Now
                         </button>
                     </div>
@@ -357,26 +351,6 @@
             }
         }
 
-        function validateTurnstile() {
-            const token = document.querySelector('[name="cf-turnstile-response"]');
-            if (!token || !token.value) {
-                Swal.fire({
-                    title: 'Verifikasi Diperlukan!',
-                    text: 'Mohon selesaikan verifikasi "Saya bukan robot" terlebih dahulu.',
-                    icon: 'warning',
-                    confirmButtonColor: '#f0a30a',
-                    confirmButtonText: 'Oke'
-                });
-                return false;
-            }
-            return true;
-        }
-
-        document.getElementById('modal-waiting-list').addEventListener('show.bs.modal', function() {
-            if (typeof turnstile !== 'undefined') {
-                turnstile.reset();
-            }
-        });
 
         fetchLiveMonitorData();
         setInterval(fetchLiveMonitorData, 1000);
