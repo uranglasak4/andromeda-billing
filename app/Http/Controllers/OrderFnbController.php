@@ -38,42 +38,89 @@ class OrderFnbController extends Controller
             'items' => 'required|array',
         ]);
 
-        $transaction = Transaction::find($request->transaction_id);
+        $transactionId = null;
+
+        if ($request->order_type === 'standalone') {
+            // Hitung total harga transaksi FnB Standalone terlebih dahulu
+            $totalFnbPrice = 0;
+            foreach ($request->items as $item) {
+                if (isset($item['is_package_include']) && $item['is_package_include']) continue;
+                $product = FnbProduct::find($item['id']);
+                if ($product) {
+                    $totalFnbPrice += (int)$item['stock'] * (float)$product->price;
+                }
+            }
+
+            $payAmount = (int) ($request->pay_amount ?? $totalFnbPrice);
+            $changeAmount = max(0, $payAmount - $totalFnbPrice);
+
+            // Buat transaksi khusus FnB standalone dengan skema kolom baru
+            $transaction = Transaction::create([
+                'created_by' => auth()->id() ?? 1,
+                'closed_by' => auth()->id() ?? 1,
+                'pool_table_id' => null,
+                'customer_name' => strtoupper($request->customer_name ?? 'WALK-IN'),
+                'billing_type' => 'fnb_standalone',
+                'start_time' => now(),
+                'end_time' => now(),
+                'duration' => 0,
+                'bill_price' => 0,
+                'fnb_price' => $totalFnbPrice,
+                'grand_total' => $totalFnbPrice,
+                'payment_method' => $request->payment_method ?? 'cash',
+                'pay_amount' => $payAmount,
+                'change_amount' => $changeAmount,
+                'status' => 'completed',
+            ]);
+            $transactionId = $transaction->id;
+        } else {
+            $transaction = Transaction::findOrFail($request->transaction_id);
+            $transactionId = $transaction->id;
+        }
 
         foreach ($request->items as $item) {
-            // Abaikan item paket bawaan (Rp 0) agar tidak di-update ulang
             if (isset($item['is_package_include']) && $item['is_package_include']) {
                 continue;
             }
 
             $product = FnbProduct::find($item['id']);
-            if (!$product)
-                continue;
+            if (!$product) continue;
 
             $inputQty = (int) $item['stock'];
             $price = (float) $product->price;
 
-            // Cari apakah pesanan FnB berbayar untuk produk ini sudah ada di transaksi
-            $existingOrder = OrderFnb::where('transaction_id', $transaction->id)
-                ->where('fnb_product_id', $product->id)
-                ->where('price', '>', 0)
-                ->first();
+            if ($request->order_type === 'table') {
+                $existingOrder = OrderFnb::where('transaction_id', $transaction->id)
+                    ->where('fnb_product_id', $product->id)
+                    ->where('price', '>', 0)
+                    ->first();
 
-            if ($existingOrder) {
-                // Jika sudah ada sebelumnya, ganti qty-nya dengan qty terbaru dari keranjang
-                $qtyDiff = $inputQty - $existingOrder->qty;
-
-                $existingOrder->update([
-                    'stock' => $inputQty,
-                    'subtotal' => $inputQty * $price
-                ]);
-
-                // Potong stok produk sesuai selisihnya saja
-                if ($qtyDiff > 0) {
-                    $product->decrement('stock', $qtyDiff);
+                if ($existingOrder) {
+                    // Gunakan $existingOrder->stock agar konsisten
+                    $qtyDiff = $inputQty - $existingOrder->stock;
+                    $existingOrder->update([
+                        'stock' => $inputQty,
+                        'subtotal' => $inputQty * $price
+                    ]);
+                    if ($qtyDiff > 0) {
+                        $product->decrement('stock', $qtyDiff);
+                    } elseif ($qtyDiff < 0) {
+                        $product->increment('stock', abs($qtyDiff));
+                    }
+                } else {
+                    OrderFnb::create([
+                        'transaction_id' => $transaction->id,
+                        'fnb_product_id' => $product->id,
+                        'customer_name' => $transaction->customer_name,
+                        'stock' => $inputQty,
+                        'price' => $price,
+                        'subtotal' => $inputQty * $price,
+                        'payment_status' => 'unpaid'
+                    ]);
+                    $product->decrement('stock', $inputQty);
                 }
             } else {
-                // Buat record pesanan berbayar baru
+                // Standalone Order (Langsung Lunas / Paid)
                 OrderFnb::create([
                     'transaction_id' => $transaction->id,
                     'fnb_product_id' => $product->id,
@@ -81,16 +128,16 @@ class OrderFnbController extends Controller
                     'stock' => $inputQty,
                     'price' => $price,
                     'subtotal' => $inputQty * $price,
-                    'payment_status' => 'unpaid'
+                    'payment_status' => 'paid'
                 ]);
-
                 $product->decrement('stock', $inputQty);
             }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Pesanan FnB berhasil diperbarui'
+            'message' => 'Pesanan FnB berhasil diproses',
+            'transaction_id' => $transactionId
         ]);
     }
 

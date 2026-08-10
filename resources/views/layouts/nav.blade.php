@@ -165,8 +165,8 @@
                                         <span class="nav-link-title">Waiting List</span>
                                     </a>
                                 </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="#">
+                                <li class="nav-item {{ Route::is('admin.reportadmin') ? 'active' : '' }}">
+                                    <a class="nav-link" href="{{ route('admin.reportadmin') }}">
                                         <span class="nav-link-title">Laporan Keuangan</span>
                                     </a>
                                 </li>

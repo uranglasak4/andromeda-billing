@@ -35,13 +35,11 @@ class BillingController extends Controller
             $duration = (int) $request->duration;
             $endTime = $startTime->copy()->addMinutes($duration);
 
-            // Fallback: Jika package_id tidak terkirim dari form, cari berdasarkan durasi
             if (!$packageId) {
                 $matchedPackage = \App\Models\Package::where('duration_value', $duration)->first();
                 $packageId = $matchedPackage ? $matchedPackage->id : null;
             }
 
-            // --- VALIDASI BACKEND UNTUK PAKET PROMO ---
             if ($packageId) {
                 $package = \App\Models\Package::find($packageId);
 
@@ -50,7 +48,6 @@ class BillingController extends Controller
                     $currentTime = $now->format('H:i:s');
                     $todayISO = (string) $now->dayOfWeekIso;
 
-                    // Ambil aturan hari aktif dari pricing_rules
                     $weekdayRule = \App\Models\PricingRule::where('day_type', 'weekday')->first();
                     $weekendRule = \App\Models\PricingRule::where('day_type', 'weekend')->first();
 
@@ -67,7 +64,6 @@ class BillingController extends Controller
 
                     $pkgDayType = strtolower($package->day_type);
 
-                    // 1. Validasi Hari (Jika 'both', skip pengecekan hari karena berlaku setiap hari)
                     if ($pkgDayType === 'weekend' && !$isTodayWeekend) {
                         return back()->withErrors(['duration' => 'Paket promo ini hanya berlaku pada hari Weekend.']);
                     }
@@ -76,17 +72,14 @@ class BillingController extends Controller
                         return back()->withErrors(['duration' => 'Paket promo me ini hanya berlaku pada hari Weekday.']);
                     }
 
-                    // 2. Validasi Jam Aktif (active_from & active_to)
                     if ($package->active_from && $package->active_to) {
                         $pkgStart = \Carbon\Carbon::parse($package->active_from)->format('H:i:s');
                         $pkgEnd = \Carbon\Carbon::parse($package->active_to)->format('H:i:s');
 
                         $isTimeValid = false;
                         if ($pkgStart <= $pkgEnd) {
-                            // Rentang jam normal (contoh: 11:30 - 22:00)
                             $isTimeValid = ($currentTime >= $pkgStart && $currentTime <= $pkgEnd);
                         } else {
-                            // Rentang jam lewat tengah malam (contoh: 22:00 - 03:00)
                             $isTimeValid = ($currentTime >= $pkgStart || $currentTime <= $pkgEnd);
                         }
 
@@ -96,14 +89,13 @@ class BillingController extends Controller
                     }
                 }
             }
-            // --- AKHIR VALIDASI BACKEND ---
         }
 
         $table->update(['status' => $statusMeja]);
 
-        // 1. Simpan Transaksi
+        // 1. Simpan Transaksi dengan created_by
         $transaction = Transaction::create([
-            'user_id' => auth()->id() ?? 1,
+            'created_by' => auth()->id() ?? 1,
             'pool_table_id' => $table->id,
             'customer_name' => $request->customer_name,
             'billing_type' => $billingType,
@@ -114,7 +106,7 @@ class BillingController extends Controller
             'status' => 'running',
         ]);
 
-        // 2. OTOMATIS TAMBAHKAN FNB INCLUDE PAKET (HARGA = 0)
+        // 2. OTOMATIS TAMBAHKAN FNB INCLUDE PAKET
         if ($billingType === 'package' && $packageId) {
             $package = \App\Models\Package::with('fnbProducts')->find($packageId);
 
@@ -127,12 +119,11 @@ class BillingController extends Controller
                         'fnb_product_id' => $fnb->id,
                         'customer_name' => $transaction->customer_name,
                         'stock' => $includeQty,
-                        'price' => 0, // Rp 0 bawaan paket
+                        'price' => 0,
                         'subtotal' => 0,
                         'payment_status' => 'unpaid',
                     ]);
 
-                    // Kurangi stok
                     $fnb->decrement('stock', $includeQty);
                 }
             }
@@ -163,7 +154,7 @@ class BillingController extends Controller
         return back()->with('error', 'Transaksi tidak ditemukan.');
     }
 
-    public function stopBilling($id)
+    public function stopBilling(Request $request, $id)
     {
         $table = PoolTable::findOrFail($id);
         $transaction = Transaction::where('pool_table_id', $id)
@@ -171,17 +162,40 @@ class BillingController extends Controller
 
         $endTime = now();
         $startTime = Carbon::parse($transaction->start_time);
+
+        // 1. Hitung durasi aktual atau gunakan durasi yang sudah ditentukan
         $durationInMinutes = $startTime->diffInMinutes($endTime);
-
-        if ($durationInMinutes < 1)
+        if ($durationInMinutes < 1) {
             $durationInMinutes = 1;
+        }
 
-        $totalPrice = 0;
+        $billPrice = 0;
         $ruleId = null;
 
+        // A. JIKA TIPE PACKAGE (FLAT DARI HARGA PAKET)
         if ($transaction->billing_type === 'package' && $transaction->package) {
-            $totalPrice = $transaction->package->price;
-        } elseif ($transaction->billing_type === 'personal') {
+            $billPrice = $transaction->package->price;
+            $ruleId = $transaction->pricing_rule_id;
+        }
+        // B. JIKA TIPE HOURLY (DIKUNCI TARIFNYA SAAT MENIT/JAM PERTAMA KALI OPEN)
+        elseif ($transaction->billing_type === 'hourly') {
+            // Cari rule berdasarkan START_TIME (Waktu saat meja mulai dibuka)
+            $rule = $this->findMatchingPricingRuleAt($startTime);
+
+            if ($rule) {
+                $ruleId = $rule->id;
+                // Gunakan durasi yang sudah di-set saat open table (dalam jam) atau durasi berjalan
+                $totalHours = $transaction->duration ? ($transaction->duration / 60) : ceil($durationInMinutes / 60);
+
+                $calculatedPrice = $totalHours * $rule->price_per_hour;
+                $billPrice = max($calculatedPrice, $rule->min_charge);
+            } else {
+                $totalHours = $transaction->duration ? ($transaction->duration / 60) : ceil($durationInMinutes / 60);
+                $billPrice = $totalHours * 30000;
+            }
+        }
+        // C. JIKA TIPE PERSONAL (OPEN TIME - BARU GUNAKAN KALKULASI BERJENJANG)
+        elseif ($transaction->billing_type === 'personal') {
             $rule = $this->findMatchingPricingRuleAt($startTime);
             $ruleId = $rule?->id;
 
@@ -189,31 +203,40 @@ class BillingController extends Controller
             $currentRule = $this->findMatchingPricingRuleAt($startTime);
             $minCharge = $currentRule?->min_charge ?? 10000;
 
-            $totalPrice = max($calculated, $minCharge);
-        } elseif ($transaction->billing_type === 'hourly') {
-            $rule = $this->findMatchingPricingRuleAt($startTime);
-
-            if ($rule) {
-                $ruleId = $rule->id;
-                $calculatedPrice = ($durationInMinutes / 60) * $rule->price_per_hour;
-                $totalPrice = max($calculatedPrice, $rule->min_charge);
-            } else {
-                $totalPrice = ceil($durationInMinutes / 60) * 30000;
-            }
+            $billPrice = max($calculated, $minCharge);
         }
 
+        // Hitung total FnB yang dipesan pada transaksi ini
+        $fnbPrice = \App\Models\OrderFnb::where('transaction_id', $transaction->id)->sum('subtotal');
+        $grandTotal = $billPrice + $fnbPrice;
+
+        $paymentMethod = $request->payment_method ?? 'cash';
+        $payAmount = (int) ($request->pay_amount ?? $grandTotal);
+        $changeAmount = max(0, $payAmount - $grandTotal);
+
         $transaction->update([
+            'closed_by' => auth()->id() ?? 1,
             'end_time' => $endTime,
-            'duration' => $durationInMinutes,
+            'duration' => $transaction->duration ?? $durationInMinutes,
             'pricing_rule_id' => $transaction->pricing_rule_id ?? $ruleId,
-            'total_price' => (int) $totalPrice,
+            'bill_price' => (int) $billPrice,
+            'fnb_price' => (int) $fnbPrice,
+            'grand_total' => (int) $grandTotal,
+            'payment_method' => $paymentMethod,
+            'pay_amount' => $payAmount,
+            'change_amount' => $changeAmount,
             'status' => 'finished'
         ]);
+
+        // Update status pembayaran FnB terkait menjadi 'paid'
+        \App\Models\OrderFnb::where('transaction_id', $transaction->id)
+            ->update(['payment_status' => 'paid']);
 
         $table->update(['status' => 'available']);
 
         return redirect()->route('admin.dashboard')
-            ->with('success', 'Meja ' . $table->table_number . ' berhasil diselesaikan! Total: Rp ' . number_format($totalPrice, 0, ',', '.'));
+            ->with('success', 'Meja ' . $table->table_number . ' berhasil diselesaikan!')
+            ->with('print_transaction_id', $transaction->id);
     }
 
     public function massOpenTable(Request $request)
@@ -262,7 +285,7 @@ class BillingController extends Controller
             $table->update(['status' => $statusMeja]);
 
             $transaction = Transaction::create([
-                'user_id' => auth()->id() ?? 1,
+                'created_by' => auth()->id() ?? 1,
                 'pool_table_id' => $table->id,
                 'customer_name' => strtoupper($request->customer_name) . " (M-{$table->table_number})",
                 'billing_type' => $billingType,
@@ -314,36 +337,38 @@ class BillingController extends Controller
                 ]);
             }
 
-            // 1. HITUNG BIAYA BILLING MEJA (PACKAGE / HOURLY / PERSONAL)
             $billingPrice = 0;
+            $startTime = \Carbon\Carbon::parse($activeTx->start_time);
 
+            // 1. JIKA TIPE PACKAGE
             if ($activeTx->billing_type === 'package' || (!empty($activeTx->package_id) && $activeTx->package)) {
-                // Jika Paket Promo
-                $billingPrice = (float) ($activeTx->package->price ?? $activeTx->total_price ?? $activeTx->package_price ?? 0);
-
-            } elseif ($activeTx->billing_type === 'hourly' || $activeTx->billing_type === 'personal') {
-                // Cek aturan harga saat ini
-                $rule = $this->findCurrentPricingRule();
+                $billingPrice = (float) ($activeTx->package->price ?? $activeTx->bill_price ?? 0);
+            }
+            // 2. JIKA TIPE HOURLY (KUNCI TARIF DI START_TIME)
+            elseif ($activeTx->billing_type === 'hourly') {
+                $rule = $this->findMatchingPricingRuleAt($startTime);
                 $pricePerHour = $rule ? $rule->price_per_hour : 29000;
                 $minCharge = $rule ? $rule->min_charge : 10000;
 
-                if ($activeTx->billing_type === 'hourly') {
-                    $durationMinutes = $activeTx->duration ?? 60;
-                    $calculated = ($durationMinutes / 60) * $pricePerHour;
-                } else {
-                    // personal = elapsed real-time
-                    $startTime = \Carbon\Carbon::parse($activeTx->start_time);
-                    $elapsedMinutes = $startTime->diffInMinutes(now());
-                    $calculated = ($elapsedMinutes / 60) * $pricePerHour;
-                }
+                $durationMinutes = $activeTx->duration ?? 60;
+                $calculated = ($durationMinutes / 60) * $pricePerHour;
+
+                $billingPrice = max($calculated, $minCharge);
+            }
+            // 3. JIKA TIPE PERSONAL (OPEN TIME - HITUNG TRANSISI BERJENJANG)
+            elseif ($activeTx->billing_type === 'personal') {
+                // Panggil kalkulasi dinamis transisi jam persis seperti di stopBilling
+                $calculated = $this->calculatePersonalBilling($activeTx->start_time, now());
+
+                $rule = $this->findMatchingPricingRuleAt($startTime);
+                $minCharge = $rule ? $rule->min_charge : 10000;
 
                 $billingPrice = max($calculated, $minCharge);
             } else {
-                // Fallback jika ada nominal tersimpan langsung
-                $billingPrice = (float) ($activeTx->total_price ?? 0);
+                $billingPrice = (float) ($activeTx->bill_price ?? 0);
             }
 
-            // 2. LOAD PESANAN FNB UNPAID (termasuk pengecekan item bawaan paket)
+            // Ambil daftar FnB unpaid
             $fnbOrdersList = [];
             $fnbOrders = $activeTx->orderFnbs()
                 ->where('payment_status', 'unpaid')
@@ -364,7 +389,6 @@ class BillingController extends Controller
 
             $totalFnb = array_sum(array_column($fnbOrdersList, 'subtotal'));
 
-            // 3. RETURN RESPONSE JSON
             return response()->json([
                 'success' => true,
                 'transaction_id' => $activeTx->id,
@@ -535,5 +559,13 @@ class BillingController extends Controller
         }
 
         return \App\Models\PricingRule::first();
+    }
+
+    public function printReceipt($transactionId)
+    {
+        $transaction = Transaction::with(['poolTable', 'orderFnbs.fnbProduct', 'creator', 'closer'])
+            ->findOrFail($transactionId);
+
+        return view('admin.receipt', compact('transaction'));
     }
 }

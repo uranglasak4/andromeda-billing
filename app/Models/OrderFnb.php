@@ -9,6 +9,8 @@ class OrderFnb extends Model
 {
     use HasFactory;
 
+    protected $table = 'order_fnbs';
+
     protected $fillable = [
         'transaction_id',
         'fnb_product_id',
@@ -16,14 +18,16 @@ class OrderFnb extends Model
         'stock',
         'price',
         'subtotal',
-        'payment_status'
+        'payment_status',
     ];
 
-    public function transaction() {
-        return $this->belongsTo(Transaction::class);
+    public function transaction()
+    {
+        return $this->belongsTo(Transaction::class, 'transaction_id');
     }
 
-    public function fnbProduct() {
+    public function fnbProduct()
+    {
         return $this->belongsTo(FnbProduct::class, 'fnb_product_id');
     }
 }

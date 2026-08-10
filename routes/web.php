@@ -10,6 +10,7 @@ use App\Http\Controllers\BillingController;
 use App\Http\Controllers\MasterController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\OrderFnbController;
+use App\Http\Controllers\ReportController;
 use App\Models\PoolTable;
 use App\Models\Transaction;
 use App\Models\OrderFnb;
@@ -51,10 +52,12 @@ Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 // =========================================================================
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+    Route::get('/receipt/{id}', [App\Http\Controllers\BillingController::class, 'printReceipt'])->name('billing.receipt');
 
     Route::post('/billing/open/{id}', [BillingController::class, 'openTable'])->name('billing.open');
     Route::post('/billing/move', [BillingController::class, 'moveTable'])->name('billing.move');
-    Route::get('/billing/stop/{id}', [BillingController::class, 'stopBilling'])->name('billing.stop');
+    // Route::get('/billing/stop/{id}', [BillingController::class, 'stopBilling'])->name('billing.stop');
+    Route::match(['get', 'post'], '/billing/stop/{id}', [BillingController::class, 'stopBilling'])->name('billing.stop');
     Route::post('/billing/mass-open', [BillingController::class, 'massOpenTable'])->name('billing.mass-open');
     Route::get('/billing/active-detail/{table_id}', [BillingController::class, 'getActiveDetail']);
     Route::post('/billing/update-customer-name', [BillingController::class, 'updateCustomerName'])->name('billing.update-customer-name');
@@ -69,7 +72,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/orderfnb/current-cart/{table_id}', [OrderFnbController::class, 'getCurrentCart']);
 Route::delete('/orderfnb/delete-item/{order_id}', [OrderFnbController::class, 'destroyItem'])->name('admin.orderfnb.delete-item');
 Route::get('/orderfnb/active-orders/{table_id}', [OrderFnbController::class, 'getActiveTableOrders']);
-Route::post('/billing/update-customer-name', [BillingController::class, 'updateCustomerName'])->name('billing.update-customer-name');
+
+Route::get('/reports', [ReportController::class, 'adminIndex'])->name('admin.reportadmin');
 });
 
 

@@ -20,7 +20,7 @@ class MasterController extends Controller
 
         $omzetHariIni = Transaction::where('status', 'finished')
             ->whereDate('end_time', today())
-            ->sum('total_price');
+            ->sum('grand_total');
 
         foreach ($tables as $table) {
             $historyToday = $table->transactions()
@@ -28,7 +28,7 @@ class MasterController extends Controller
                 ->whereDate('end_time', today());
 
             $table->total_transaksi = $historyToday->count();
-            $table->total_pendapatan = $historyToday->sum('total_price');
+            $table->total_pendapatan = $historyToday->sum('grand_total');
             $table->total_waktu = $historyToday->sum('duration');
         }
 

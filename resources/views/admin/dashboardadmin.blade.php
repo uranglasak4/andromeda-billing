@@ -251,15 +251,10 @@
                 <div class="modal-body">
                     <div class="modal-title h3 text-center mb-3">Opsi Meja <span id="option-no-meja"></span></div>
 
-                    <div class="row g-2 mb-3">
+                    <div class="row g-2 mb-2">
                         <div class="col-12">
                             <button class="btn btn-info w-100 py-2 fw-bold" onclick="showMoveModal()">
                                 <i class="ti ti-arrows-exchange me-2"></i> Pindah Meja
-                            </button>
-                        </div>
-                        <div class="col-12">
-                            <button class="btn btn-danger w-100 py-2 fw-bold" onclick="stopBilling()">
-                                <i class="ti ti-player-stop me-2"></i> Selesaikan Billing
                             </button>
                         </div>
                         <div class="col-12">
@@ -340,6 +335,11 @@
                                 <span id="grand-total-bill" class="text-monospace">Rp 0</span>
                             </div>
                         </div>
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-danger w-100 py-2 fw-bold" onclick="stopBilling()">
+                            <i class="ti ti-player-stop me-2"></i> Selesaikan Billing
+                        </button>
                     </div>
                 </div>
             </div>
@@ -467,6 +467,70 @@
                         <button type="submit" class="btn btn-danger w-100 fw-bold py-2"
                             onclick="return confirm('Tembak billing massal sekarang? Periksa kembali rentang meja!')">
                             💥 TEMBAK BILLING ROKET
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Payment (Pop-up Pembayaran Kasir) -->
+    <div class="modal modal-blur fade" id="modal-payment-table" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form id="form-payment-billing" method="POST">
+                    @csrf
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title fw-bold">💳 Pembayaran Meja <span id="pay-no-meja"></span></h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Rincian Ringkas Tagihan -->
+                        <div class="card bg-light p-2 mb-3 border-0">
+                            <div class="d-flex justify-content-between text-muted small mb-1">
+                                <span>Biaya Billing:</span>
+                                <span id="pay-billing-price" class="fw-bold text-dark">Rp 0</span>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted small mb-1">
+                                <span>Total FnB:</span>
+                                <span id="pay-fnb-price" class="fw-bold text-dark">Rp 0</span>
+                            </div>
+                            <hr class="my-1 border-secondary">
+                            <div class="d-flex justify-content-between fw-bold text-danger h4 mb-0">
+                                <span>GRAND TOTAL:</span>
+                                <span id="pay-grand-total">Rp 0</span>
+                            </div>
+                        </div>
+
+                        <!-- Input Metode Pembayaran -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Metode Pembayaran</label>
+                            <select name="payment_method" id="pay-method-select" class="form-select fw-bold">
+                                <option value="cash" selected>💵 Cash / Tunai</option>
+                                <option value="qris">📱 QRIS / Transfer</option>
+                                <option value="transfer">💳 Debit / Kredit / Transfer</option>
+                            </select>
+                        </div>
+
+                        <!-- Input Uang Diterima -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Uang Diterima (Rp)</label>
+                            <input type="number" name="pay_amount" id="pay-amount-input"
+                                class="form-control form-control-lg fw-bold text-primary" placeholder="0" min="0"
+                                oninput="calculateChangeAmount()" required>
+                        </div>
+
+                        <!-- Tampilan Kembalian Real-time -->
+                        <div class="card bg-success-lt p-2 text-center border-1 border-success">
+                            <div class="text-uppercase small fw-bold text-success">Kembalian</div>
+                            <div class="h3 m-0 font-weight-bold text-success" id="pay-change-display">Rp 0</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success w-100 fw-bold py-2"
+                            onclick="return confirm('Proses pembayaran dan selesaikan billing?')">
+                            ✅ LUNASI & SELESAIKAN BILLING
                         </button>
                     </div>
                 </form>
@@ -794,9 +858,83 @@
             new bootstrap.Modal(document.getElementById('modal-move-table')).show();
         }
 
+        // Variabel global untuk menyimpan Grand Total transaksi saat ini
+        let currentGrandTotal = 0;
+
+        // =========================================================================
+        // ALUR PEMBAYARAN KASIR (POP-UP MODAL PEMBAYARAN)
+        // =========================================================================
         function stopBilling() {
-            if (confirm('Selesaikan billing meja ini?')) {
-                window.location.href = `/admin/billing/stop/${window.currentSelectedTableId}`;
+            const tableId = window.currentSelectedTableId;
+            if (!tableId) {
+                alert('Silakan pilih meja terlebih dahulu.');
+                return;
+            }
+
+            // Tentukan URL Action Form menuju BillingController::stopBilling
+            const formPayment = document.getElementById('form-payment-billing');
+            formPayment.action = `/admin/billing/stop/${tableId}`;
+
+            // Tutup Modal Option Meja terlebih dahulu
+            const optionModalEl = document.getElementById('modal-option-table');
+            if (optionModalEl) {
+                const optionModal = bootstrap.Modal.getInstance(optionModalEl);
+                if (optionModal) optionModal.hide();
+            }
+
+            // Ambil data rincian tagihan secara presisi menggunakan URL Route Laravel yang pas
+            fetch(`/admin/billing/active-detail/${tableId}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Gagal mengambil data billing dari server.');
+                    return res.json();
+                })
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.message || 'Transaksi tidak ditemukan.');
+                        return;
+                    }
+
+                    // Hitung Biaya Billing & Grand Total
+                    let billingPrice = parseInt(data.billing_price) || 0;
+                    let totalFnb = parseInt(data.total_fnb) || 0;
+                    let grandTotal = parseInt(data.grand_total) || (billingPrice + totalFnb);
+
+                    currentGrandTotal = grandTotal;
+
+                    // Isikan data ke elemen-elemen Modal Pembayaran
+                    document.getElementById('pay-no-meja').innerText = document.getElementById('option-no-meja')
+                        .innerText;
+                    document.getElementById('pay-billing-price').innerText =
+                        `Rp ${billingPrice.toLocaleString('id-ID')}`;
+                    document.getElementById('pay-fnb-price').innerText = `Rp ${totalFnb.toLocaleString('id-ID')}`;
+                    document.getElementById('pay-grand-total').innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
+
+                    // Reset input Uang Diterima = Grand Total
+                    const inputPay = document.getElementById('pay-amount-input');
+                    inputPay.value = grandTotal;
+                    calculateChangeAmount();
+
+                    // Munculkan Modal Pembayaran
+                    new bootstrap.Modal(document.getElementById('modal-payment-table')).show();
+                })
+                .catch(err => {
+                    console.error('Error Stop Billing:', err);
+                    alert('Gagal memproses detail billing: ' + err.message);
+                });
+        }
+
+        // Fungsi Hitung Kembalian Otomatis
+        function calculateChangeAmount() {
+            const payInput = parseFloat(document.getElementById('pay-amount-input').value) || 0;
+            const change = payInput - currentGrandTotal;
+            const displayChange = document.getElementById('pay-change-display');
+
+            if (change < 0) {
+                displayChange.innerText = `Kurang Rp ${Math.abs(change).toLocaleString('id-ID')}`;
+                displayChange.className = "h3 m-0 font-weight-bold text-danger";
+            } else {
+                displayChange.innerText = `Rp ${change.toLocaleString('id-ID')}`;
+                displayChange.className = "h3 m-0 font-weight-bold text-success";
             }
         }
 
@@ -1022,6 +1160,13 @@
                     const snd = document.getElementById('snd-finished');
                     if (snd) snd.play().catch(e => console.log("Audio blocked"));
                 }
+            @endif
+        });
+
+        window.addEventListener('load', function() {
+            @if (session('print_transaction_id'))
+                // Otomatis buka tab struk baru
+                window.open("{{ route('billing.receipt', session('print_transaction_id')) }}", "_blank");
             @endif
         });
 

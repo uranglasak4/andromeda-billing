@@ -31,11 +31,17 @@ class DatabaseSeeder extends Seeder
             'role' => 'master',
         ]);
 
-
         User::updateOrCreate([
             'name' => 'Wok',
             'username' => 'wok',
             'password' => Hash::make('wok'),
+            'role' => 'admin',
+        ]);
+
+        User::updateOrCreate([
+            'name' => 'Ted',
+            'username' => 'ted',
+            'password' => Hash::make('ted'),
             'role' => 'admin',
         ]);
 
