@@ -568,4 +568,95 @@ class BillingController extends Controller
 
         return view('admin.receipt', compact('transaction'));
     }
+
+    // 1. Simpan Billing sebagai Tagihan Pending (Lampu Meja Mati, Status = 'unpaid')
+    public function storeUnpaid(Request $request)
+    {
+        $request->validate([
+            'table_id' => 'required|exists:pool_tables,id',
+        ]);
+
+        $table = PoolTable::findOrFail($request->table_id);
+        $transaction = Transaction::where('pool_table_id', $table->id)
+            ->where('status', 'running')->firstOrFail();
+
+        $endTime = now();
+        $startTime = Carbon::parse($transaction->start_time);
+
+        $durationInMinutes = max($startTime->diffInMinutes($endTime), 1);
+        $billPrice = 0;
+        $ruleId = null;
+
+        if ($transaction->billing_type === 'package' && $transaction->package) {
+            $billPrice = $transaction->package->price;
+            $ruleId = $transaction->pricing_rule_id;
+        } elseif ($transaction->billing_type === 'hourly') {
+            $rule = $this->findMatchingPricingRuleAt($startTime);
+            if ($rule) {
+                $ruleId = $rule->id;
+                $totalHours = $transaction->duration ? ($transaction->duration / 60) : ceil($durationInMinutes / 60);
+                $billPrice = max($totalHours * $rule->price_per_hour, $rule->min_charge);
+            } else {
+                $totalHours = $transaction->duration ? ($transaction->duration / 60) : ceil($durationInMinutes / 60);
+                $billPrice = $totalHours * 30000;
+            }
+        } elseif ($transaction->billing_type === 'personal') {
+            $rule = $this->findMatchingPricingRuleAt($startTime);
+            $ruleId = $rule?->id;
+            $calculated = $this->calculatePersonalBilling($transaction->start_time, $endTime);
+            $minCharge = $rule?->min_charge ?? 10000;
+            $billPrice = max($calculated, $minCharge);
+        }
+
+        $fnbPrice = \App\Models\OrderFnb::where('transaction_id', $transaction->id)->sum('subtotal');
+        $grandTotal = $billPrice + $fnbPrice;
+
+        $transaction->update([
+            'end_time' => $endTime,
+            'duration' => $transaction->duration ?? $durationInMinutes,
+            'pricing_rule_id' => $transaction->pricing_rule_id ?? $ruleId,
+            'bill_price' => (int) $billPrice,
+            'fnb_price' => (int) $fnbPrice,
+            'grand_total' => (int) $grandTotal,
+            'status' => 'unpaid', // <-- MASUK STATUS UNPAID
+            'closed_by' => auth()->id() ?? 1,
+        ]);
+
+        // Bebaskan meja billiard agar bisa dipesan pelanggan lain
+        $table->update(['status' => 'available']);
+
+        return redirect()->route('admin.dashboard')
+            ->with('success', 'Meja telah di-checkout! Tagihan dipindahkan ke daftar Pending.');
+    }
+
+    // 2. Pelunasan Tagihan Pending (Dari Status Unpaid ke Finished)
+    public function payUnpaid(Request $request, $id)
+    {
+        $request->validate([
+            'payment_method' => 'required',
+            'pay_amount' => 'required|numeric',
+        ]);
+
+        $transaction = Transaction::findOrFail($id);
+
+        $payAmount = (int) $request->pay_amount;
+        $grandTotal = (int) $transaction->grand_total;
+        $changeAmount = max(0, $payAmount - $grandTotal);
+
+        $transaction->update([
+            'payment_method' => $request->payment_method,
+            'pay_amount' => $payAmount,
+            'change_amount' => $changeAmount,
+            'status' => 'finished', // <-- LUNAS & RESMI MASUK LAPORAN KEUANGAN
+            'closed_by' => auth()->id() ?? 1,
+        ]);
+
+        \App\Models\OrderFnb::where('transaction_id', $transaction->id)
+            ->update(['payment_status' => 'paid']);
+
+        return redirect()->route('admin.dashboard')
+            ->with('success', 'Tagihan berhasil dilunasi!')
+            ->with('print_transaction_id', $transaction->id);
+    }
+
 }

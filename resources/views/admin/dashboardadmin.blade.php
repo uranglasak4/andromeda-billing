@@ -3,7 +3,7 @@
 @section('content')
     <div class="page-body">
         <div class="container-xl">
-            <!-- Bagian Monitoring Meja -->
+            <!-- Bagian Monitoring Meja & Unpaid Table -->
             <div class="row">
                 <div id="meja-section" class="col-md-12">
                     <div class="row">
@@ -54,8 +54,6 @@
                                                         <div class="fw-bold countdown-timer"
                                                             style="font-size: 1.2rem; color: #fff;"
                                                             data-start="{{ \Carbon\Carbon::parse($activeTrans->start_time)->toIso8601String() }}"
-                                                            /* Hapus pengecekan status timeout di sini agar JS selalu dapat
-                                                            data waktu */
                                                             data-end="{{ $activeTrans->end_time ? \Carbon\Carbon::parse($activeTrans->end_time)->toIso8601String() : '' }}"
                                                             data-table-number="{{ $table->table_number }}">
 
@@ -86,6 +84,80 @@
                                         </div>
                                     </div>
                                 @endforeach
+
+                                {{-- SISIPAN: Posisi Widget Unpaid DITARUH DILUAR FOREACH (Persis setelah Meja 16) --}}
+                                <div class="col-12 col-md-4 mb-3">
+                                    <div class="card border-warning shadow-sm h-100 d-flex flex-column">
+                                        <div
+                                            class="card-header bg-warning-lt py-1 px-3 d-flex justify-content-between align-items-center">
+                                            <h4 class="card-title fw-bold text-dark mb-0 small">⏳ Tagihan Pending (Unpaid)
+                                            </h4>
+                                            <span
+                                                class="badge bg-warning text-dark">{{ isset($unpaidTransactions) ? $unpaidTransactions->count() : 0 }}</span>
+                                        </div>
+                                        <div class="table-responsive flex-grow-1"
+                                            style="max-height: 180px; overflow-y: auto;">
+                                            <table class="table table-vcenter card-table table-striped table-sm mb-0">
+                                                <thead>
+                                                    <tr style="font-size: 0.75rem;">
+                                                        <th>Nota</th>
+                                                        <th>Cust / Meja</th>
+                                                        <th>Total</th>
+                                                        <th class="text-center">Aksi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody style="font-size: 0.8rem;">
+                                                    @if (isset($unpaidTransactions) && $unpaidTransactions->count() > 0)
+                                                        @foreach ($unpaidTransactions as $unpaid)
+                                                            <tr>
+                                                                <td class="fw-bold">
+                                                                    #{{ str_pad($unpaid->id, 4, '0', STR_PAD_LEFT) }}</td>
+                                                                <td>
+                                                                    <div class="fw-bold text-truncate"
+                                                                        style="max-width: 90px;">
+                                                                        {{ strtoupper($unpaid->customer_name) }}</div>
+                                                                    <div class="text-muted small">Meja
+                                                                        {{ $unpaid->poolTable->table_number ?? '-' }}</div>
+                                                                </td>
+                                                                <td class="fw-bold text-danger text-nowrap">
+                                                                    Rp
+                                                                    {{ number_format($unpaid->grand_total, 0, ',', '.') }}
+                                                                </td>
+                                                                <td class="text-center text-nowrap">
+                                                                    <a href="{{ route('billing.receipt', $unpaid->id) }}"
+                                                                        target="_blank"
+                                                                        class="btn btn-icon btn-sm btn-ghost-secondary me-1"
+                                                                        title="Cetak Struk">
+                                                                        🖨️
+                                                                    </a>
+                                                                    <button type="button"
+                                                                        class="btn btn-sm btn-success px-2 py-0 fw-bold"
+                                                                        style="font-size: 0.75rem;"
+                                                                        onclick="showPayUnpaidModal(
+        {{ $unpaid->id }},
+        '{{ $unpaid->poolTable->table_number ?? ($unpaid->customer_name ?? 'Pending') }}',
+        {{ $unpaid->bill_price ?? 0 }},
+        {{ $unpaid->fnb_price ?? 0 }},
+        {{ $unpaid->grand_total ?? 0 }}
+    )">
+                                                                        Bayar
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
+                                                    @else
+                                                        <tr>
+                                                            <td colspan="4" class="text-center text-muted py-3 small">
+                                                                Tidak ada tagihan pending
+                                                            </td>
+                                                        </tr>
+                                                    @endif
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
 
@@ -114,6 +186,61 @@
             </div>
         </div>
     </div>
+
+    {{-- <!-- TABEL LIST UNPAID / TAGIHAN PENDING -->
+    @if (isset($unpaidTransactions) && $unpaidTransactions->count() > 0)
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-warning shadow-sm">
+                    <div class="card-header bg-warning-lt py-2">
+                        <h3 class="card-title fw-bold text-dark mb-0">⏳ Daftar Tagihan Pending (Unpaid)</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-vcenter card-table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>No. Nota</th>
+                                    <th>Customer</th>
+                                    <th>Meja</th>
+                                    <th>Tgl / Jam Stop</th>
+                                    <th>Total Tagihan</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($unpaidTransactions as $unpaid)
+                                    <tr>
+                                        <td class="fw-bold">#{{ str_pad($unpaid->id, 6, '0', STR_PAD_LEFT) }}</td>
+                                        <td>{{ strtoupper($unpaid->customer_name) }}</td>
+                                        <td>Meja {{ $unpaid->poolTable->table_number ?? '-' }}</td>
+                                        <td>{{ \Carbon\Carbon::parse($unpaid->end_time)->format('d/m/Y H:i') }}</td>
+                                        <td class="fw-bold text-danger">Rp
+                                            {{ number_format($unpaid->grand_total, 0, ',', '.') }}</td>
+                                        <td class="text-center">
+                                            <a href="{{ route('billing.receipt', $unpaid->id) }}" target="_blank"
+                                                class="btn btn-sm btn-outline-secondary me-1">
+                                                🖨️ Struk Tagihan
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-success fw-bold"
+                                                onclick="showPayUnpaidModal(
+            {{ $unpaid->id }},
+            '{{ $unpaid->table->name ?? ($unpaid->customer_name ?? 'Pending') }}',
+            {{ $unpaid->billing_price ?? 0 }},
+            {{ $unpaid->total_fnb ?? 0 }},
+            {{ $unpaid->grand_total ?? $unpaid->billing_price }}
+        )">
+                                                <i class="ti ti-cash me-1"></i> Pelunasan
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif --}}
 
     <!-- Modal Open Table -->
     <div class="modal modal-blur fade" id="modal-open-table" tabindex="-1" role="dialog" aria-hidden="true">
@@ -336,10 +463,22 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12">
-                        <button class="btn btn-danger w-100 py-2 fw-bold" onclick="stopBilling()">
-                            <i class="ti ti-player-stop me-2"></i> Selesaikan Billing
-                        </button>
+                    <div class="row g-2 mt-2">
+                        <div class="col-6">
+                            <form id="form-unpaid-billing" action="{{ route('transactions.unpaid') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="table_id" id="unpaid-table-id">
+                                <button type="submit" class="btn btn-outline-warning w-100 py-2 fw-bold"
+                                    onclick="return confirm('Pindahkan tagihan ke Pending & kosongkan meja?')">
+                                    ⏳ Tagihan Pending
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-danger w-100 py-2 fw-bold" onclick="stopBilling()">
+                                💳 Bayar & Lunas
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -481,7 +620,7 @@
                 <form id="form-payment-billing" method="POST">
                     @csrf
                     <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title fw-bold">💳 Pembayaran Meja <span id="pay-no-meja"></span></h5>
+                        <h5 class="modal-title fw-bold">💳 Pembayaran <span id="pay-no-meja"></span></h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                             aria-label="Close"></button>
                     </div>
@@ -506,9 +645,10 @@
                         <!-- Input Metode Pembayaran -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Metode Pembayaran</label>
-                            <select name="payment_method" id="pay-method-select" class="form-select fw-bold">
-                                <option value="cash" selected>💵 Cash / Tunai</option>
-                                <option value="qris">📱 QRIS / Transfer</option>
+                            <select class="form-select" id="payment-method-select" name="payment_method"
+                                onchange="handlePaymentMethodChange()">
+                                <option value="cash">💵 Cash / Tunai</option>
+                                <option value="qris">📱 QRIS</option>
                                 <option value="transfer">💳 Debit / Kredit / Transfer</option>
                             </select>
                         </div>
@@ -522,7 +662,7 @@
                         </div>
 
                         <!-- Tampilan Kembalian Real-time -->
-                        <div class="card bg-success-lt p-2 text-center border-1 border-success">
+                        <div class="card bg-success-lt p-2 text-center border-1 border-success" id="change-box-container">
                             <div class="text-uppercase small fw-bold text-success">Kembalian</div>
                             <div class="h3 m-0 font-weight-bold text-success" id="pay-change-display">Rp 0</div>
                         </div>
@@ -664,7 +804,7 @@
             window.currentSelectedTableId = id;
             document.getElementById('option-no-meja').innerText = number;
             document.getElementById('from-table-id').value = id;
-
+            document.getElementById('unpaid-table-id').value = id;
             document.getElementById('option-customer-name-input').value = "";
             window.currentActiveTransactionId = null;
 
@@ -901,9 +1041,15 @@
 
                     currentGrandTotal = grandTotal;
 
+                    let rawTable = document.getElementById('option-no-meja').innerText;
+
+                    // Format agar selalu ada kata "Meja" di depannya (Menjadi "Meja 1")
+                    let formatMeja = String(rawTable).toLowerCase().includes('meja') ?
+                        rawTable :
+                        `Meja ${rawTable}`;
+
                     // Isikan data ke elemen-elemen Modal Pembayaran
-                    document.getElementById('pay-no-meja').innerText = document.getElementById('option-no-meja')
-                        .innerText;
+                    document.getElementById('pay-no-meja').innerText = formatMeja;
                     document.getElementById('pay-billing-price').innerText =
                         `Rp ${billingPrice.toLocaleString('id-ID')}`;
                     document.getElementById('pay-fnb-price').innerText = `Rp ${totalFnb.toLocaleString('id-ID')}`;
@@ -926,15 +1072,23 @@
         // Fungsi Hitung Kembalian Otomatis
         function calculateChangeAmount() {
             const payInput = parseFloat(document.getElementById('pay-amount-input').value) || 0;
-            const change = payInput - currentGrandTotal;
+
+            // Gunakan currentUnpaidGrandTotal jika ada, kalau tidak ada pakai currentGrandTotal
+            const grandTotal = (typeof currentUnpaidGrandTotal !== 'undefined' && currentUnpaidGrandTotal > 0) ?
+                currentUnpaidGrandTotal :
+                (typeof currentGrandTotal !== 'undefined' ? currentGrandTotal : 0);
+
+            const change = payInput - grandTotal;
             const displayChange = document.getElementById('pay-change-display');
 
-            if (change < 0) {
-                displayChange.innerText = `Kurang Rp ${Math.abs(change).toLocaleString('id-ID')}`;
-                displayChange.className = "h3 m-0 font-weight-bold text-danger";
-            } else {
-                displayChange.innerText = `Rp ${change.toLocaleString('id-ID')}`;
-                displayChange.className = "h3 m-0 font-weight-bold text-success";
+            if (displayChange) {
+                if (change < 0) {
+                    displayChange.innerText = `Kurang Rp ${Math.abs(change).toLocaleString('id-ID')}`;
+                    displayChange.className = "h3 m-0 font-weight-bold text-danger";
+                } else {
+                    displayChange.innerText = `Rp ${change.toLocaleString('id-ID')}`;
+                    displayChange.className = "h3 m-0 font-weight-bold text-success";
+                }
             }
         }
 
@@ -1156,7 +1310,7 @@
                     if (snd) snd.play().catch(e => console.log("Audio blocked"));
                 }
                 // Meja selesai -> finished.wav[cite: 23]
-                else if (msg.includes('selesai')) {
+                else if (msg.includes('selesai') || msg.includes('pending') || msg.includes('unpaid')) {
                     const snd = document.getElementById('snd-finished');
                     if (snd) snd.play().catch(e => console.log("Audio blocked"));
                 }
@@ -1191,6 +1345,81 @@
             } else {
                 console.error("Elemen modal-rocket-billing tidak ditemukan!");
             }
+        }
+
+        let currentUnpaidGrandTotal = 0;
+
+        function showPayUnpaidModal(id, tableName, billPrice, fnbPrice, grandTotal) {
+            // 1. Set Action Form ke Endpoint Pay Unpaid
+            const formPayment = document.getElementById('form-payment-billing');
+            if (formPayment) {
+                formPayment.action = `/admin/transactions/${id}/pay`;
+            }
+
+            // Convert angka secara aman
+            let bPrice = parseFloat(billPrice) || 0;
+            let fPrice = parseFloat(fnbPrice) || 0;
+            let gTotal = parseFloat(grandTotal) || (bPrice + fPrice);
+
+            currentGrandTotal = gTotal;
+
+            // 2. Set Nilai Tampilan di Modal Pembayaran
+            const noMejaEl = document.getElementById('pay-no-meja');
+            if (noMejaEl) {
+                noMejaEl.innerText = tableName.toLowerCase().startsWith('meja') ? tableName : `Meja ${tableName}`;
+            }
+
+            document.getElementById('pay-billing-price').innerText = `Rp ${bPrice.toLocaleString('id-ID')}`;
+            document.getElementById('pay-fnb-price').innerText = `Rp ${fPrice.toLocaleString('id-ID')}`;
+            document.getElementById('pay-grand-total').innerText = `Rp ${gTotal.toLocaleString('id-ID')}`;
+
+            // 3. Reset Input Uang Diterima & Hitung Kembalian
+            const payInput = document.getElementById('pay-amount-input');
+            if (payInput) {
+                payInput.value = gTotal;
+            }
+
+            handlePaymentMethodChange();
+            calculateChangeAmount();
+
+            // 4. Tampilkan Modal Payment Table
+            const modalEl = document.getElementById('modal-payment-table');
+            if (modalEl) {
+                new bootstrap.Modal(modalEl).show();
+            }
+        }
+
+        function handlePaymentMethodChange() {
+            const methodSelect = document.getElementById('payment-method-select');
+            const payInput = document.getElementById('pay-amount-input');
+            const changeBox = document.getElementById('change-box-container'); // Beri ID ini pada container kotak kembalian
+
+            if (!methodSelect || !payInput) return;
+
+            const isCash = methodSelect.value === 'cash';
+
+            if (!isCash) {
+                // Mode Non-Cash (QRIS/Transfer)
+                payInput.value = currentGrandTotal;
+                payInput.readOnly = true;
+
+                // Beri warna latar abu-abu terang dan hilangkan kursor teks
+                payInput.style.backgroundColor = '#e9ecef';
+                payInput.style.cursor = 'not-allowed';
+
+                // Opsional: Sembunyikan kotak kembalian jika bukan tunai
+                if (changeBox) changeBox.style.display = 'none';
+            } else {
+                // Mode Cash/Tunai
+                payInput.readOnly = false;
+                payInput.style.backgroundColor = '#ffffff';
+                payInput.style.cursor = 'text';
+
+                // Tampilkan kembali kotak kembalian
+                if (changeBox) changeBox.style.display = 'block';
+            }
+
+            calculateChangeAmount();
         }
     </script>
 @endsection

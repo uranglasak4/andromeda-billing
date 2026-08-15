@@ -26,7 +26,7 @@ return new class extends Migration
             $table->dateTime('end_time')->nullable(); // Nullable untuk tipe 'personal'
             $table->integer('duration')->nullable();   // Durasi dalam menit
 
-            $table->enum('status', ['running', 'finished', 'cancelled'])->default('running');
+            $table->enum('status', ['running', 'unpaid', 'finished', 'cancelled'])->default('running');
             $table->timestamps();
         });
     }

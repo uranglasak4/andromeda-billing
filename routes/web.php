@@ -52,7 +52,11 @@ Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 // =========================================================================
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
-    Route::get('/receipt/{id}', [App\Http\Controllers\BillingController::class, 'printReceipt'])->name('billing.receipt');
+
+    Route::post('/transactions/unpaid', [BillingController::class, 'storeUnpaid'])->name('transactions.unpaid');
+    Route::post('/transactions/{id}/pay', [BillingController::class, 'payUnpaid'])->name('transactions.pay');
+
+    Route::get('/receipt/{id}', [BillingController::class, 'printReceipt'])->name('billing.receipt');
 
     Route::post('/billing/open/{id}', [BillingController::class, 'openTable'])->name('billing.open');
     Route::post('/billing/move', [BillingController::class, 'moveTable'])->name('billing.move');
@@ -70,10 +74,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/orderfnb', [OrderFnbController::class, 'index'])->name('admin.orderfnb');
     Route::post('/orderfnb', [OrderFnbController::class, 'store'])->name('admin.orderfnb.store');
     Route::get('/orderfnb/current-cart/{table_id}', [OrderFnbController::class, 'getCurrentCart']);
-Route::delete('/orderfnb/delete-item/{order_id}', [OrderFnbController::class, 'destroyItem'])->name('admin.orderfnb.delete-item');
-Route::get('/orderfnb/active-orders/{table_id}', [OrderFnbController::class, 'getActiveTableOrders']);
+    Route::delete('/orderfnb/delete-item/{order_id}', [OrderFnbController::class, 'destroyItem'])->name('admin.orderfnb.delete-item');
+    Route::get('/orderfnb/active-orders/{table_id}', [OrderFnbController::class, 'getActiveTableOrders']);
 
-Route::get('/reports', [ReportController::class, 'adminIndex'])->name('admin.reportadmin');
+    Route::get('/reports', [ReportController::class, 'adminIndex'])->name('admin.reportadmin');
 });
 
 
@@ -122,7 +126,7 @@ Route::post('/customer/waiting-list/check-otp', [WaitingListController::class, '
 Route::post('/customer/waiting-list/timeout', [WaitingListController::class, 'handleTimeoutCustomer'])->name('customer.waiting-list.timeout');
 
 // Rute khusus untuk dibaca oleh Python di komputer kasir toko
-Route::get('/status-lampu-iot', function() {
+Route::get('/status-lampu-iot', function () {
     try {
         $now = now();
         $nearlyMinutes = (int) (\App\Models\Setting::where('key', 'nearly_warning_minutes')
