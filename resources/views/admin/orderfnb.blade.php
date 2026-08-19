@@ -15,7 +15,7 @@
                             <h3 class="card-title text-white h3 mb-1">
                                 <i class="ti ti-apps me-2 text-warning"></i> Daftar Menu FnB
                             </h3>
-                            <!-- Tombol Filter Kategori (UX Mulus) -->
+                            <!-- Tombol Filter Kategori -->
                             <div class="d-flex flex-wrap gap-1 w-100" id="category-filter-container">
                                 <button class="btn btn-sm btn-warning fw-bold btn-filter-cat"
                                     onclick="filterCategory('all', this)">
@@ -34,7 +34,6 @@
                         <div class="card-body p-3" style="overflow-y: auto; flex: 1;">
                             <div class="row row-cards g-2" id="fnb-products-grid">
                                 @foreach ($products as $product)
-                                    <!-- Tambahkan class category-id dinamis untuk filter -->
                                     <div class="col-6 col-sm-4 col-md-3 fnb-item-card cat-{{ $product->fnb_category_id }}">
                                         <button class="card card-btn w-100 p-2 text-center border-2 btn-menu shadow-sm"
                                             onclick="addToCart({{ $product->id }}, '{{ $product->name }}', {{ $product->price }}, {{ $product->stock }})"
@@ -69,6 +68,7 @@
                             </h3>
                         </div>
 
+                        <!-- HEADER TIPE ORDER & PILIHAN TARGET -->
                         <div class="p-3 border-bottom bg-light">
                             <div class="row g-2 mb-2">
                                 <div class="col-6">
@@ -90,7 +90,6 @@
                             </div>
 
                             <div id="box-select-table">
-                                <!-- KODE BARU -->
                                 <select name="transaction_id" id="select-meja-fnb" class="form-select fw-bold">
                                     <option value="">-- Pilih Meja Aktif --</option>
                                     @foreach ($activeTransactions as $tx)
@@ -108,6 +107,7 @@
                             </div>
                         </div>
 
+                        <!-- AREA DAFTAR KERANJANG -->
                         <div class="p-3" style="overflow-y: auto; flex: 1;" id="cart-items-wrapper">
                             <div class="text-center text-muted py-5" id="cart-empty-state">
                                 <i class="ti ti-basket fs-1 d-block mb-2 text-muted opacity-50"></i>
@@ -116,17 +116,61 @@
                             <div id="cart-table-list" class="d-none">
                                 <table class="table table-vcenter card-table table-borderless">
                                     <tbody id="cart-table-body">
-                                        <!-- Terisi otomatis -->
+                                        <!-- Terisi otomatis via JS -->
                                     </tbody>
                                 </table>
                             </div>
                         </div>
 
+                        <!-- BOX HITAM BOTTOM: TOTAL BAYAR & INPUT PEMBAYARAN STANDALONE -->
                         <div class="p-3 bg-dark text-white border-top">
+                            <!-- METODE & INPUT UANG (KHUSUS STANDALONE) -->
+                            <div id="box-payment-standalone" class="d-none mb-3 pb-2 border-bottom border-secondary">
+                                <div class="row g-2 align-items-center mb-2">
+                                    <div class="col-5">
+                                        <label class="small text-muted fw-bold mb-0">Metode Bayar:</label>
+                                    </div>
+                                    <div class="col-7">
+                                        <select id="select_payment_method"
+                                            class="form-select form-select-sm bg-secondary text-white border-0 fw-bold"
+                                            onchange="togglePaymentInput()">
+                                            <option value="cash">💵 CASH</option>
+                                            <option value="qris">📱 QRIS</option>
+                                            <option value="transfer">🏦 TRANSFER</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div id="cash-input-wrapper">
+                                    <div class="row g-2 align-items-center mb-2">
+                                        <div class="col-5">
+                                            <label class="small text-muted fw-bold mb-0">Uang Diterima:</label>
+                                        </div>
+                                        <div class="col-7">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-secondary text-white border-0">Rp</span>
+                                                <input type="number" id="inp_pay_amount"
+                                                    class="form-control bg-secondary text-white border-0 fw-bold"
+                                                    placeholder="0" oninput="calculateChange()">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- LABEL & KETERANGAN KEMBALIAN / KURANG UANG DINAMIS -->
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small text-muted fw-bold" id="label-change-status">Kembalian:</span>
+                                        <span class="h4 mb-0 text-success fw-bold" id="text-change-amount">Rp 0</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- DISPLAY TOTAL BAYAR -->
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span class="h3 mb-0 text-muted">Total Bayar:</span>
                                 <span class="h1 mb-0 text-warning fw-bold" id="cart-total-text">Rp 0</span>
                             </div>
+
+                            <!-- TOMBOL PROSES NOTA -->
                             <button type="button" class="btn btn-warning w-100 py-2 h2 fw-bold mb-0 text-dark shadow"
                                 onclick="checkoutOrder()">
                                 <i class="ti ti-circle-check me-2 fs-2"></i> PROSES NOTA SEKARANG
@@ -134,7 +178,8 @@
                         </div>
 
                     </div>
-                    <!-- TABEL RIWAYAT PESANAN TERAKHIR (Ditarik dari data $recentOrders di controller) -->
+
+                    <!-- TABEL RIWAYAT PESANAN TERAKHIR -->
                     <div class="mt-3 card border-0 shadow-sm">
                         <div class="card-header bg-secondary text-white py-2">
                             <h4 class="card-title text-white mb-0 small"><i class="ti ti-history me-1"></i> 5 Pesanan FnB
@@ -199,21 +244,27 @@
             color: white !important;
             border-color: #206bc4 !important;
         }
+
+        /* Menghilangkan tombol panah naik turun di input number */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
     </style>
 
     <script>
         let cart = [];
+        let currentGrandTotal = 0;
 
-        // =========================================================================
-        // HELPER FUNCTION: FORMAT CURRENCY / ANGKA
-        // =========================================================================
         function numberFormat(number) {
             return new Intl.NumberFormat('id-ID').format(number || 0);
         }
 
-        // =========================================================================
-        // 1. LIVE FILTER KATEGORI
-        // =========================================================================
         function filterCategory(className, btnElement) {
             const buttons = document.querySelectorAll('.btn-filter-cat');
             buttons.forEach(btn => {
@@ -233,9 +284,6 @@
             });
         }
 
-        // =========================================================================
-        // 2. TOGGLE TIPE ORDERAN (BILL MEJA / STANDALONE)
-        // =========================================================================
         function toggleType(type) {
             if (type === 'table') {
                 document.getElementById('lbl-type-table').className =
@@ -244,6 +292,9 @@
                     'form-check form-check-inline m-0 btn w-100 p-2 border text-muted';
                 document.getElementById('box-select-table').classList.remove('d-none');
                 document.getElementById('box-input-name').classList.add('d-none');
+
+                // Sembunyikan input pembayaran di box hitam
+                document.getElementById('box-payment-standalone').classList.add('d-none');
 
                 loadCartBySelectedMeja();
             } else {
@@ -254,14 +305,60 @@
                 document.getElementById('box-select-table').classList.add('d-none');
                 document.getElementById('box-input-name').classList.remove('d-none');
 
+                // Tampilkan input pembayaran di box hitam
+                document.getElementById('box-payment-standalone').classList.remove('d-none');
+
                 cart = [];
                 renderCart();
             }
         }
 
-        // =========================================================================
-        // 3. TAMBAH PRODUK KE KERANJANG (DARI KLIK MENU SISI KIRI)
-        // =========================================================================
+        function togglePaymentInput() {
+            const payMethod = document.getElementById('select_payment_method').value;
+            const cashWrapper = document.getElementById('cash-input-wrapper');
+
+            if (payMethod === 'cash') {
+                cashWrapper.classList.remove('d-none');
+            } else {
+                cashWrapper.classList.add('d-none');
+            }
+            calculateChange();
+        }
+
+        function calculateChange() {
+            const payMethod = document.getElementById('select_payment_method').value;
+            const payAmountInput = document.getElementById('inp_pay_amount');
+            const changeText = document.getElementById('text-change-amount');
+            const changeLabel = document.getElementById('label-change-status');
+
+            if (payMethod !== 'cash') {
+                changeLabel.innerText = 'Kembalian:';
+                changeText.className = 'h4 mb-0 text-success fw-bold';
+                changeText.innerText = 'Rp 0';
+                return;
+            }
+
+            let payAmount = parseFloat(payAmountInput.value) || 0;
+            let diff = payAmount - currentGrandTotal;
+
+            if (payAmount === 0) {
+                changeLabel.innerText = 'Kembalian:';
+                changeText.className = 'h4 mb-0 text-success fw-bold';
+                changeText.innerText = 'Rp 0';
+            } else if (diff < 0) {
+                // KONDISI UANG KURANG
+                let shortage = Math.abs(diff);
+                changeLabel.innerText = 'Status Bayar:';
+                changeText.className = 'h4 mb-0 text-danger fw-bold';
+                changeText.innerText = 'Kurang Rp ' + numberFormat(shortage);
+            } else {
+                // KONDISI UANG PAS / LEBIH
+                changeLabel.innerText = 'Kembalian:';
+                changeText.className = 'h4 mb-0 text-success fw-bold';
+                changeText.innerText = 'Rp ' + numberFormat(diff);
+            }
+        }
+
         function addToCart(id, name, price, maxStock) {
             let existing = cart.find(item => item.id === id && (!item.is_package_include && !item.is_package_item));
             if (existing) {
@@ -291,9 +388,6 @@
             renderCart();
         }
 
-        // =========================================================================
-        // 4. UPDATE QUANTITY (TAMBAH / KURANG ITEM)
-        // =========================================================================
         function updateQty(id, delta) {
             let item = cart.find(i => i.id === id && (!i.is_package_include && !i.is_package_item));
             if (item) {
@@ -316,12 +410,9 @@
             renderCart();
         }
 
-        // =========================================================================
-        // 5. RENDER CART KE SIDEBAR KANAN
-        // =========================================================================
         function renderCart() {
             let html = '';
-            let grandTotal = 0;
+            currentGrandTotal = 0;
 
             const emptyState = document.getElementById('cart-empty-state');
             const tableList = document.getElementById('cart-table-list');
@@ -332,6 +423,7 @@
                 if (emptyState) emptyState.classList.remove('d-none');
                 if (tableList) tableList.classList.add('d-none');
                 if (totalText) totalText.innerText = 'Rp 0';
+                calculateChange();
                 return;
             }
 
@@ -340,11 +432,9 @@
 
             cart.forEach(function(item) {
                 let itemName = item.product_name || item.name;
-                // Gunakan is_package_include dari Controller
                 let isPackage = item.is_package_include || item.is_package_item || parseFloat(item.price) === 0;
                 let itemSubtotal = item.subtotal !== undefined ? item.subtotal : (item.price * item.stock);
 
-                // Format bentuk Table <tr> sesuai Blade kamu
                 html += `
             <tr>
                 <td class="text-start ps-0">
@@ -353,14 +443,14 @@
                 </td>
                 <td style="width: 110px;">
                     ${isPackage ? `
-                            <div class="text-center fw-bold text-muted">${item.stock} Pcs</div>
-                        ` : `
-                            <div class="input-group input-group-sm">
-                                <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, -1)">-</button>
-                                <input type="text" class="form-control text-center px-0 fw-bold" value="${item.stock}" readonly>
-                                <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, 1)">+</button>
-                            </div>
-                        `}
+                                    <div class="text-center fw-bold text-muted">${item.stock} Pcs</div>
+                                ` : `
+                                    <div class="input-group input-group-sm">
+                                        <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, -1)">-</button>
+                                        <input type="text" class="form-control text-center px-0 fw-bold" value="${item.stock}" readonly>
+                                        <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, 1)">+</button>
+                                    </div>
+                                `}
                 </td>
                 <td class="text-end fw-bold pe-0 text-dark">
                     Rp ${numberFormat(itemSubtotal)}
@@ -368,16 +458,15 @@
             </tr>
             `;
 
-                grandTotal += parseFloat(itemSubtotal);
+                currentGrandTotal += parseFloat(itemSubtotal);
             });
 
             if (tbody) tbody.innerHTML = html;
-            if (totalText) totalText.innerText = 'Rp ' + numberFormat(grandTotal);
+            if (totalText) totalText.innerText = 'Rp ' + numberFormat(currentGrandTotal);
+
+            calculateChange();
         }
 
-        // =========================================================================
-        // 6. DELETE EXISTING ORDER DARI DATABASE
-        // =========================================================================
         function deleteExistingOrder(orderId) {
             Swal.fire({
                 title: 'Hapus Menu Pesanan?',
@@ -423,9 +512,6 @@
             });
         }
 
-        // =========================================================================
-        // 7. READ: AMBIL DATA ORDERAN MEJA REAL-TIME
-        // =========================================================================
         function loadCartBySelectedMeja() {
             const selectMeja = document.getElementById('select-meja-fnb');
             if (!selectMeja) return;
@@ -474,15 +560,11 @@
                 });
         }
 
-        // Event listener saat dropdown meja diganti
         const selectMejaEl = document.getElementById('select-meja-fnb');
         if (selectMejaEl) {
             selectMejaEl.addEventListener('change', loadCartBySelectedMeja);
         }
 
-        // =========================================================================
-        // 8. SUBMIT ORDER
-        // =========================================================================
         function checkoutOrder() {
             if (cart.length === 0) {
                 Swal.fire('Keranjang Kosong!', 'Pilih menu makanan dulu sebelum proses.', 'info');
@@ -491,7 +573,6 @@
 
             const type = document.querySelector('input[name="order_type"]:checked').value;
 
-            // Jangan proses item yang statusnya include paket
             let itemsToProcess = cart.filter(function(item) {
                 return !item.is_package_include && !item.is_package_item && parseFloat(item.price) > 0;
             });
@@ -518,12 +599,27 @@
                 }
                 payload.transaction_id = txId;
             } else {
+                // VALIDASI UTAMA ORDER STANDALONE
                 const name = document.getElementById('inp_customer_name').value.trim();
+                const paymentMethod = document.getElementById('select_payment_method').value;
+                const payAmount = parseFloat(document.getElementById('inp_pay_amount').value) || 0;
+
                 if (!name) {
                     Swal.fire('Nama Kosong!', 'Isi nama customer walk-in.', 'warning');
                     return;
                 }
+
+                if (paymentMethod === 'cash' && payAmount < currentGrandTotal) {
+                    Swal.fire('Uang Kurang!',
+                        `Uang diterima (Rp ${numberFormat(payAmount)}) kurang dari Total Bayar (Rp ${numberFormat(currentGrandTotal)}).`,
+                        'warning');
+                    return;
+                }
+
                 payload.customer_name = name;
+                payload.payment_method = paymentMethod;
+                payload.pay_amount = paymentMethod === 'cash' ? payAmount : currentGrandTotal;
+                payload.change_amount = paymentMethod === 'cash' ? (payAmount - currentGrandTotal) : 0;
             }
 
             Swal.fire({
@@ -548,11 +644,9 @@
                     Swal.close();
                     if (data.success) {
                         if (type === 'standalone' && data.transaction_id) {
-                            // Otomatis buka tab cetak struk
                             window.open(`/admin/receipt/${data.transaction_id}`, '_blank');
                         }
 
-                        // Notifikasi sukses & reset cart milikmu
                         alert('Pesanan berhasil diproses!');
                         location.reload();
                     } else {
@@ -565,9 +659,6 @@
                 });
         }
 
-        // =========================================================================
-        // 9. AUTOMATIC RUN ON LOAD
-        // =========================================================================
         document.addEventListener("DOMContentLoaded", function() {
             const urlParams = new URLSearchParams(window.location.search);
             const tableIdFromUrl = urlParams.get('table_id');

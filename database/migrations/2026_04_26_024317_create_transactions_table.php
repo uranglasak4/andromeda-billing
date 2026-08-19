@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -14,10 +13,10 @@ return new class extends Migration
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('pool_table_id')->constrained('pool_tables');
+            $table->foreignId('pool_table_id')->nullable()->constrained('pool_tables')->onDelete('cascade');
             $table->string('customer_name')->nullable();
 
-        // Tipe billing: jam-jaman, paket, atau open table (personal)
+            // Tipe billing: jam-jaman, paket, atau open table (personal)
             $table->enum('billing_type', ['hourly', 'package', 'personal']);
             $table->foreignId('pricing_rule_id')->nullable()->constrained('pricing_rules');
             $table->foreignId('package_id')->nullable()->constrained('packages');

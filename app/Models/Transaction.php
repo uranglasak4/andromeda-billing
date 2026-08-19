@@ -31,7 +31,7 @@ class Transaction extends Model
 
     protected $casts = [
         'start_time' => 'datetime',
-        'end_time'   => 'datetime',
+        'end_time' => 'datetime',
     ];
 
     // Relasi ke Kasir Pembuka (Shift Start)
@@ -48,7 +48,7 @@ class Transaction extends Model
 
     public function poolTable()
     {
-        return $this->belongsTo(PoolTable::class, 'pool_table_id');
+        return $this->belongsTo(PoolTable::class, 'pool_table_id')->withTrashed();
     }
 
     public function package()

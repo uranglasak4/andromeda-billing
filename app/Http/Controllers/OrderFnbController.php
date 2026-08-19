@@ -44,23 +44,24 @@ class OrderFnbController extends Controller
             // Hitung total harga transaksi FnB Standalone terlebih dahulu
             $totalFnbPrice = 0;
             foreach ($request->items as $item) {
-                if (isset($item['is_package_include']) && $item['is_package_include']) continue;
+                if (isset($item['is_package_include']) && $item['is_package_include'])
+                    continue;
                 $product = FnbProduct::find($item['id']);
                 if ($product) {
-                    $totalFnbPrice += (int)$item['stock'] * (float)$product->price;
+                    $totalFnbPrice += (int) $item['stock'] * (float) $product->price;
                 }
             }
 
             $payAmount = (int) ($request->pay_amount ?? $totalFnbPrice);
             $changeAmount = max(0, $payAmount - $totalFnbPrice);
 
-            // Buat transaksi khusus FnB standalone dengan skema kolom baru
+            // Buat transaksi khusus FnB standalone dengan skema kolom yang valid di database
             $transaction = Transaction::create([
                 'created_by' => auth()->id() ?? 1,
                 'closed_by' => auth()->id() ?? 1,
                 'pool_table_id' => null,
                 'customer_name' => strtoupper($request->customer_name ?? 'WALK-IN'),
-                'billing_type' => 'fnb_standalone',
+                'billing_type' => 'personal',                             // Disesuaikan ke enum database ('personal')
                 'start_time' => now(),
                 'end_time' => now(),
                 'duration' => 0,
@@ -70,7 +71,7 @@ class OrderFnbController extends Controller
                 'payment_method' => $request->payment_method ?? 'cash',
                 'pay_amount' => $payAmount,
                 'change_amount' => $changeAmount,
-                'status' => 'completed',
+                'status' => 'finished',                             // Disesuaikan ke enum database ('finished')
             ]);
             $transactionId = $transaction->id;
         } else {
@@ -84,7 +85,8 @@ class OrderFnbController extends Controller
             }
 
             $product = FnbProduct::find($item['id']);
-            if (!$product) continue;
+            if (!$product)
+                continue;
 
             $inputQty = (int) $item['stock'];
             $price = (float) $product->price;

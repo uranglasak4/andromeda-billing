@@ -256,19 +256,30 @@ class MasterController extends Controller
             return redirect()->back()->with('error', 'Nomor meja atau Relay Channel sudah digunakan oleh meja aktif lain!');
         }
 
-        // 3. Bersihkan data bekas Soft Delete jika ada yang bentrok dengan input baru ini
-        PoolTable::withTrashed()
+        // 3 & 4. Restore data jika ada di sampah (Soft Delete), atau buat baru jika tidak ada
+        $trashedTable = PoolTable::onlyTrashed()
             ->where('table_number', $request->table_number)
             ->orWhere('relay_channel', $request->relay_channel)
-            ->forceDelete();
+            ->first();
 
-        // 4. Simpan Meja Baru
-        PoolTable::create([
-            'table_number' => $request->table_number,
-            'relay_channel' => $request->relay_channel,
-            'status' => 'available',
-            'is_active' => true,
-        ]);
+        if ($trashedTable) {
+            // Pulihkan meja yang terhapus dan perbarui datanya
+            $trashedTable->restore();
+            $trashedTable->update([
+                'table_number' => $request->table_number,
+                'relay_channel' => $request->relay_channel,
+                'status' => 'available',
+                'is_active' => true,
+            ]);
+        } else {
+            // Simpan Meja Baru murni
+            PoolTable::create([
+                'table_number' => $request->table_number,
+                'relay_channel' => $request->relay_channel,
+                'status' => 'available',
+                'is_active' => true,
+            ]);
+        }
 
         return redirect()->back()->with('success', "Meja {$request->table_number} berhasil ditambahkan!");
     }

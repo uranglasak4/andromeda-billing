@@ -125,7 +125,21 @@
                             @forelse ($transactions as $item)
                                 <tr>
                                     <!-- 1. No Nota -->
-                                    <td>#{{ str_pad($item->id, 6, '0', STR_PAD_LEFT) }}</td>
+                                    <td>
+                                        @php
+                                            if (!$item->pool_table_id) {
+                                                $prefix = 'FNB';
+                                            } elseif (($item->fnb_price ?? 0) > 0) {
+                                                $prefix = 'ALL';
+                                            } else {
+                                                $prefix = 'BLM';
+                                            }
+                                        @endphp
+
+                                        <span class="font-weight-bold" style="font-family: monospace;">
+                                            {{ $prefix }}-{{ $item->created_at ? $item->created_at->format('ymd') : date('ymd') }}-{{ str_pad($item->id, 4, '0', STR_PAD_LEFT) }}
+                                        </span>
+                                    </td>
 
                                     <!-- 2. Kasir Open -->
                                     <td>{{ $item->creator->name ?? 'Admin' }}</td>
@@ -135,9 +149,13 @@
 
                                     <!-- 4. Tipe Billing -->
                                     <td>
-                                        <span class="badge badge-secondary">
-                                            {{ ucfirst($item->billing_type ?? 'Hourly') }}
-                                        </span>
+                                        @if ($item->pool_table_id)
+                                            <span class="badge badge-secondary">
+                                                {{ ucfirst($item->billing_type ?? 'Hourly') }}
+                                            </span>
+                                        @else
+                                            -
+                                        @endif
                                     </td>
 
                                     <!-- 5. Nama Cust -->
@@ -145,7 +163,7 @@
 
                                     <!-- 6. No Meja -->
                                     <td>
-                                        @if ($item->poolTable)
+                                        @if ($item->pool_table_id && $item->poolTable)
                                             <span class="badge badge-primary">Meja
                                                 {{ $item->poolTable->table_number }}</span>
                                         @else
@@ -155,12 +173,14 @@
 
                                     <!-- 7. Start Billing -->
                                     <td>
-                                        {{ $item->start_time ? \Carbon\Carbon::parse($item->start_time)->format('H:i') : '-' }}
+                                        {{ $item->pool_table_id && $item->start_time ? \Carbon\Carbon::parse($item->start_time)->format('H:i') : '-' }}
                                     </td>
 
                                     <!-- 8. Durasi -->
                                     <td>
-                                        @if ($item->billing_type === 'hourly')
+                                        @if (!$item->pool_table_id)
+                                            -
+                                        @elseif ($item->billing_type === 'hourly')
                                             <strong>{{ round(($item->duration ?? 60) / 60) }} Jam</strong>
                                         @elseif($item->billing_type === 'package')
                                             @php
@@ -203,11 +223,13 @@
 
                                     <!-- 9. Close Billing -->
                                     <td>
-                                        {{ $item->end_time ? \Carbon\Carbon::parse($item->end_time)->format('H:i') : \Carbon\Carbon::parse($item->updated_at)->format('H:i') }}
+                                        {{ $item->pool_table_id ? ($item->end_time ? \Carbon\Carbon::parse($item->end_time)->format('H:i') : \Carbon\Carbon::parse($item->updated_at)->format('H:i')) : '-' }}
                                     </td>
 
                                     <!-- 10. Sewa Meja -->
-                                    <td>Rp {{ number_format($item->bill_price ?? 0, 0, ',', '.') }}</td>
+                                    <td>
+                                        {{ $item->pool_table_id ? 'Rp ' . number_format($item->bill_price ?? 0, 0, ',', '.') : '-' }}
+                                    </td>
 
                                     <!-- 11. Harga FnB -->
                                     <td>Rp {{ number_format($item->fnb_price ?? 0, 0, ',', '.') }}</td>

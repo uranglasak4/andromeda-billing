@@ -1,3 +1,14 @@
+@php
+    if (!$transaction->pool_table_id) {
+        $prefix = 'FNB';
+    } elseif (($transaction->fnb_price ?? 0) > 0) {
+        $prefix = 'ALL';
+    } else {
+        $prefix = 'BLM';
+    }
+
+    $formattedNota = $prefix . '-' . ($transaction->created_at ? $transaction->created_at->format('ymd') : date('ymd')) . '-' . str_pad($transaction->id, 4, '0', STR_PAD_LEFT);
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -17,6 +28,9 @@
             display: inline-block;
             margin-top: 5px;
             font-weight: bold;
+        }
+        @media print {
+            #action-buttons { display: none !important; }
         }
     </style>
 </head>
@@ -38,7 +52,7 @@
     <table>
         <tr>
             <td>No. Nota:</td>
-            <td class="text-right">#{{ str_pad($transaction->id, 6, '0', STR_PAD_LEFT) }}</td>
+            <td class="text-right"><strong>{{ $formattedNota }}</strong></td>
         </tr>
         <tr>
             <td>Tanggal:</td>
@@ -50,7 +64,7 @@
         </tr>
         <tr>
             <td>Meja:</td>
-            <td class="text-right">MEJA {{ $transaction->pool_table_id }}</td>
+            <td class="text-right">{{ $transaction->pool_table_id ? 'MEJA ' . $transaction->pool_table_id : 'WALK-IN' }}</td>
         </tr>
     </table>
 
@@ -66,6 +80,8 @@
             </tr>
         </thead>
         <tbody>
+            <!-- SEWA MEJA (HANYA DITAMPILKAN JIKA BUKAN TRANSAKSI MURNI FNB / DENGAN MEJA) -->
+            @if($transaction->pool_table_id && (($transaction->bill_price ?? 0) > 0 || ($transaction->grand_total ?? 0) > 0))
             <tr>
                 <td colspan="3">
                     <strong>SEWA MEJA ({{ strtoupper($transaction->billing_type ?? 'Hourly') }})</strong><br>
@@ -78,14 +94,38 @@
             <tr>
                 <td></td>
                 <td class="text-center">1</td>
-                <td class="text-right">Rp {{ number_format($transaction->bill_price ?? $transaction->grand_total, 0, ',', '.') }}</td>
+                <td class="text-right">Rp {{ number_format($transaction->bill_price ?? 0, 0, ',', '.') }}</td>
             </tr>
+            @endif
 
-            @if(!empty($transaction->fnb_price) && $transaction->fnb_price > 0)
-            <tr>
-                <td colspan="2">Pesanan FnB</td>
-                <td class="text-right">Rp {{ number_format($transaction->fnb_price, 0, ',', '.') }}</td>
-            </tr>
+            <!-- DETAIL SETIAP ITEM FNB SATU PER SATU -->
+            @if(isset($transaction->orderFnbs) && $transaction->orderFnbs->count() > 0)
+                @foreach($transaction->orderFnbs as $order)
+                    @php
+                        $isPackageInclude = $order->is_package_include || ($order->price ?? 0) == 0;
+                        $itemName = $order->fnbProduct->name ?? $order->product_name ?? 'Item FnB';
+                        $qty = $order->qty ?? $order->stock ?? 1;
+                        $price = $order->price ?? 0;
+                        $subtotal = $isPackageInclude ? 0 : ($price * $qty);
+                    @endphp
+                    <tr>
+                        <td colspan="3" style="padding-top: 3px;">
+                            <strong>{{ $itemName }}</strong>
+                            @if($isPackageInclude)
+                                <small style="font-size: 10px; color: #555;">(Inc. Package)</small>
+                            @endif
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="font-size: 11px;">
+                            @if(!$isPackageInclude)
+                                @ Rp {{ number_format($price, 0, ',', '.') }}
+                            @endif
+                        </td>
+                        <td class="text-center">{{ $qty }}</td>
+                        <td class="text-right">Rp {{ number_format($subtotal, 0, ',', '.') }}</td>
+                    </tr>
+                @endforeach
             @endif
         </tbody>
     </table>
@@ -108,11 +148,11 @@
             @if(($transaction->payment_method ?? '') === 'cash')
             <tr>
                 <td>Uang Bayar:</td>
-                <td class="text-right">Rp {{ number_format($transaction->pay_amount, 0, ',', '.') }}</td>
+                <td class="text-right">Rp {{ number_format($transaction->pay_amount ?? 0, 0, ',', '.') }}</td>
             </tr>
             <tr>
                 <td>Kembali:</td>
-                <td class="text-right">Rp {{ number_format($transaction->change_amount, 0, ',', '.') }}</td>
+                <td class="text-right">Rp {{ number_format($transaction->change_amount ?? 0, 0, ',', '.') }}</td>
             </tr>
             @endif
         @else
