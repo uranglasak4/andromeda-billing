@@ -68,6 +68,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
 
     Route::get('/waiting-list', [WaitingListController::class, 'index'])->name('admin.waitinglist');
     Route::post('/waiting-list/verify/{id}', [WaitingListController::class, 'verifyPlayer'])->name('admin.waitinglist.verify');
+    Route::post('/waiting-list/panggil/{id}', [WaitingListController::class, 'panggilPlayer'])->name('admin.waiting-list.panggil');
     Route::post('/waiting-list/skip/{id}', [WaitingListController::class, 'skipPlayer'])->name('admin.waitinglist.skip');
     Route::post('/waiting-list', [WaitingListController::class, 'store'])->name('admin.waiting-list.store');
 

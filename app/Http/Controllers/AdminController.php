@@ -14,27 +14,33 @@ class AdminController extends Controller
 {
     public function index()
     {
-        // 1. Ambil 14 meja, urutkan berdasarkan nomor meja BESERTA TRANSAKSI AKTIFNYA (running)
-        // Ini sangat krusial agar nama customer dan FnB orderan bisa terbaca di modal dashboard!
+        // 1. Ambil meja beserta transaksi aktifnya
         $tables = PoolTable::with([
             'transactions' => function ($query) {
                 $query->where('status', 'running');
             }
         ])->orderBy('table_number', 'asc')->get();
 
-        $currentWaitingCount = WaitingList::where('status', 'waiting')->count();
         $pricingRules = PricingRule::all();
         $packages = Package::where('is_active', true)->get();
 
-        $waitingCustomers = WaitingList::where('status', 'waiting')
-            ->whereDate('created_at', Carbon::today())
+        // 🟢 TAMBAHAN TAHAP 2: Ambil WL aktif (Status call, verified, waiting) untuk Dropdown Billing
+        $waitingCustomers = WaitingList::whereDate('created_at', Carbon::today())
+            ->whereIn('status', ['call', 'verified', 'waiting'])
+            ->orderByRaw("
+            CASE
+                WHEN status = 'call' THEN 1
+                WHEN tipe = 'onsite' OR status = 'verified' THEN 2
+                WHEN status = 'not_verified' THEN 3
+                ELSE 4
+            END ASC
+        ")
             ->orderBy('created_at', 'asc')
             ->get();
 
-        // Re-assign count agar akurat sesuai data hari ini
         $currentWaitingCount = $waitingCustomers->count();
 
-        // --- TAMBAHAN: Ambil data transaksi yang status pembayarannya unpaid / pending ---
+        // Data transaksi unpaid
         $unpaidTransactions = Transaction::where('status', 'unpaid')
             ->with('poolTable')
             ->latest()
@@ -85,14 +91,14 @@ class AdminController extends Controller
     {
         $now = now();
 
-        // 1. Ambil semua data 14 meja biliar beserta transaksi aktifnya
+        // 1. Ambil semua data 16 meja biliar beserta transaksi aktifnya
         $tables = PoolTable::with([
             'transactions' => function ($query) {
                 $query->where('status', 'running');
             }
         ])->orderBy('table_number', 'asc')->get();
 
-        // Koreksi status otomatis di latar belakang saat dashboard/monitor melakukan polling
+        // Koreksi status otomatis jika waktu sewa meja sudah habis
         foreach ($tables as $table) {
             if ($table->status === 'playing') {
                 $activeTx = $table->transactions->first();
@@ -105,16 +111,34 @@ class AdminController extends Controller
             }
         }
 
-        // 2. AMBIL DATA WAITING LIST YANG AKTIF (Statusnya 'waiting')
-        $waitingList = WaitingList::whereDate('created_at', Carbon::today())
-            ->whereIn('status', ['waiting', 'not_verified', 'verified', 'call']) // <-- Sekarang ikut ditarik!
+        // 2A. QUERY UNTUK ADMIN KASIR (HIERARKI PRESISI 3 TINGKAT)
+        // Prioritas 1: Online Verified (status = 'verified')
+        // Prioritas 2: On-Site Kasir (tipe = 'onsite')
+        // Prioritas 3: Online Unverified (status = 'not_verified')
+        $waitingListAdmin = WaitingList::whereDate('created_at', Carbon::today())
+            ->whereIn('status', ['waiting', 'not_verified', 'verified', 'call'])
+            ->orderByRaw("
+            CASE
+                WHEN status = 'verified' THEN 1
+                WHEN tipe = 'onsite' THEN 2
+                WHEN status = 'not_verified' THEN 3
+                ELSE 4
+            END ASC
+        ")
+            ->orderBy('created_at', 'asc') // Urut kronologis jam daftar dalam kelompok yang sama
+            ->get();
+
+        // 2B. QUERY UNTUK LIVE MONITOR (MURNI KRONOLOGIS JAM DAFTAR)
+        $waitingListMonitor = WaitingList::whereDate('created_at', Carbon::today())
+            ->whereIn('status', ['waiting', 'not_verified', 'verified', 'call'])
             ->orderBy('created_at', 'asc')
             ->get();
 
-        // 3. BUNGKUS KEDUANYA MENJADI SATU KESATUAN JSON RESPONSE
+        // 3. Response JSON
         return response()->json([
             'tables' => $tables,
-            'waiting_list' => $waitingList
+            'waiting_list' => $waitingListAdmin,          // Dipakai Admin Kasir
+            'waiting_list_monitor' => $waitingListMonitor // Dipakai Live Monitor Board
         ]);
     }
 }

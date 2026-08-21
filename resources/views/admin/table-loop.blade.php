@@ -20,7 +20,21 @@
             </td>
         </tr>
     @else
-        @php $no = 1; @endphp
+        @php
+            $no = 1;
+
+            // 1. Hitung berapa antrean yang sedang berstatus dipanggil
+            $calledCount = $items->where('status', 'call')->count();
+
+            // 2. Hitung sisa kuota meja kosong untuk antrean berikutnya
+            $remainingSlots = max(0, ($availableTables ?? 0) - $calledCount);
+
+            // 3. Ambil ID antrean yang siap dipanggil SESUAI URUTAN TABEL SAAT INI ($items)
+            $allowedToCallIds = $items->filter(function($item) {
+                return in_array($item->status, ['waiting', 'verified']);
+            })->pluck('id')->take($remainingSlots)->toArray();
+        @endphp
+
         @foreach ($items as $list)
             <tr class="fw-bold text-dark">
                 <td><span class="badge bg-secondary-lt fw-bold">{{ $no++ }}</span></td>
@@ -37,7 +51,7 @@
                     @if ($list->status === 'waiting')
                         <span class="badge bg-success px-2 py-1 text-white">READY</span>
                     @elseif ($list->status === 'not_verified')
-                        <span class="badge bg-danger-lt px-2 py-1">⏳ BELUM LAPOR</span>
+                        <span class="badge bg-danger-lt px-2 py-1">⏳ UNVERIFIED</span>
                     @elseif ($list->status === 'verified')
                         <span class="badge bg-blue-lt px-2 py-1">✔️ VERIFIED</span>
                     @elseif ($list->status === 'call')
@@ -63,11 +77,20 @@
 
                         <!-- JIKA ANTREAN AKTIF (BISA DIPANGGIL DAN DICORENG) -->
                         @if(in_array($list->status, ['waiting', 'verified', 'call']))
-                            <!-- Tombol Panggil Pelanggan -->
-                            <form action="{{ url('admin/waiting-list/panggil/'.$list->id) }}" method="POST" class="d-inline">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-warning fw-bold">📢 Panggil</button>
-                            </form>
+
+                            {{-- CEK APAKAH STATUSNYA 'CALL' ATAU TERMASUK ID YANG DIIZINKAN DIPANGGIL --}}
+                            @if($list->status === 'call' || in_array($list->id, $allowedToCallIds))
+                                <!-- Tombol Panggil Pelanggan -->
+                                <form action="{{ url('admin/waiting-list/panggil/'.$list->id) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-warning fw-bold">📢 Panggil</button>
+                                </form>
+                            @else
+                                {{-- Jika meja penuh atau antrean di bawah kuota meja kosong --}}
+                                <span class="badge bg-secondary-lt text-muted px-2 py-1">
+                                    🔒 {{ ($availableTables ?? 0) == 0 ? 'Meja Penuh' : 'Menunggu Meja' }}
+                                </span>
+                            @endif
 
                             <!-- Tombol Coreng / No-Show -->
                             <form action="{{ route('admin.waitinglist.skip', $list->id) }}" method="POST" class="d-inline">

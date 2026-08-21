@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\WaitingList;
 use App\Models\Setting;
+use App\Models\PoolTable; // <-- PENTING: Import model PoolTable di sini!
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 
 class WaitingListController extends Controller
 {
     // 1. TAMPILKAN HALAMAN UTAMA KASIR + CEK OTOMATIS EXPIRED LAPIS 2
-    public function index()
+   public function index()
     {
         // Ambil menit regulasi dari setting master (contoh: 15 menit ke kasir)
         $limitMinutes = Setting::where('key', 'verification_time')->value('value') ?? 15;
@@ -29,12 +30,39 @@ class WaitingListController extends Controller
             }
         }
 
-        // Ambil semua data antrean hari ini
+        // -----------------------------------------------------------------------
+        // HITUNG STATUS MEJA VS ANTREAN SESUAI LOGIKA
+        // Pendaftaran DIBUKA jika: Total Waiting >= (Available + Timeout)
+        // -----------------------------------------------------------------------
+        $availableTables = PoolTable::whereIn('status', ['available', 'timeout'])->count();
+
+        $totalWaiting = WaitingList::whereDate('created_at', Carbon::today())
+            ->whereIn('status', ['waiting', 'not_verified', 'verified', 'call'])
+            ->count();
+
+        $canRegister = $totalWaiting >= $availableTables;
+
+        // Ambil data antrean aktif hari ini (Prioritas: Call > Ready/Verified > Unverified)
         $waitingLists = WaitingList::whereDate('created_at', Carbon::today())
-            ->orderBy('created_at', 'desc')
+            ->whereIn('status', ['waiting', 'not_verified', 'verified', 'call'])
+            ->orderByRaw("
+                CASE
+                    WHEN status = 'call' THEN 1
+                    WHEN tipe = 'onsite' OR status = 'verified' THEN 2
+                    WHEN status = 'not_verified' THEN 3
+                    ELSE 4
+                END ASC
+            ")
+            ->orderBy('created_at', 'asc')
             ->get();
 
-        return view('admin.waitinglist', compact('waitingLists', 'limitMinutes'));
+        return view('admin.waitinglist', compact(
+            'waitingLists',
+            'limitMinutes',
+            'canRegister',
+            'availableTables',
+            'totalWaiting'
+        ));
     }
 
     // 2. PROSES SIMPAN ANTREAN (ONSITE & ONLINE)
@@ -42,10 +70,19 @@ class WaitingListController extends Controller
     {
         $fonnteToken = env('FONNTE_TOKEN');
 
-        // Hitung nomor urut berjalan berdasarkan antrean aktif hari ini
-        $nextQueueNo = WaitingList::whereDate('created_at', Carbon::today())
+        // Hitung ketersediaan meja vs antrean saat ini
+        $availableTables = PoolTable::whereIn('status', ['available', 'timeout'])->count();
+        $totalWaiting = WaitingList::whereDate('created_at', Carbon::today())
             ->whereIn('status', ['waiting', 'not_verified', 'verified', 'call'])
-            ->count() + 1;
+            ->count();
+
+        // 🟢 PROTEKSI KASIR & ONLINE: Jika antrean lebih sedikit dari meja kosong/timeout, tolak pendaftaran!
+        if ($totalWaiting < $availableTables) {
+            return redirect()->back()->with('error', 'Pendaftaran WL ditutup! Kuota meja kosong/timeout masih mencukupi.');
+        }
+
+        // Hitung nomor urut berjalan berdasarkan antrean aktif hari ini
+        $nextQueueNo = $totalWaiting + 1;
 
         // Format nomor WhatsApp ke standar 62
         $formattedPhone = null;
@@ -65,7 +102,7 @@ class WaitingListController extends Controller
             // [DAFTAR ON SITE] - Langsung Antrean Aktif
             // -------------------------------------------------------
             $request->validate([
-                'nama_pelanggan' => 'required|string|max:25',
+                'nama_pelanggan' => 'required|string|max:18',
                 'nomor_wa' => 'nullable|numeric',
             ]);
 
@@ -114,7 +151,7 @@ class WaitingListController extends Controller
 
             $otpCode = rand(1000, 9999);
 
-            // 🟢 UBAH: Status awal diset 'pending' untuk Lapis 1
+            // 🟢 Status awal diset 'pending' untuk Lapis 1
             $waitingList = WaitingList::create([
                 'customer_name' => strtoupper($request->nama_pelanggan),
                 'phone_number' => $formattedPhone,
@@ -151,7 +188,6 @@ class WaitingListController extends Controller
             'otp_code' => 'required|numeric'
         ]);
 
-        // 🟢 UBAH: Cari data yang statusnya 'pending'
         $waitingList = WaitingList::whereDate('created_at', Carbon::today())
             ->where('otp', $request->otp_code)
             ->where('status', 'pending')
@@ -162,7 +198,6 @@ class WaitingListController extends Controller
             return back()->withErrors(['otp_code' => 'Kode OTP salah, tidak valid, atau batas waktu verifikasi Anda sudah habis!']);
         }
 
-        // 🟢 UBAH: Lolos Lapis 1 -> Naikkan status ke 'not_verified' (Siap ke Kasir)
         $waitingList->status = 'not_verified';
         $waitingList->verified_at = now(); // Timer 15 menit ke kasir dimulai dari sini
         $waitingList->save();
@@ -179,11 +214,10 @@ class WaitingListController extends Controller
         $queue = WaitingList::find($request->id);
 
         if ($queue && $queue->status === 'pending') {
-            // 🟢 UBAH: Set status ke 'failed' alih-alih delete
             $queue->update([
                 'status' => 'failed',
-                'otp'    => null,
-                ]);
+                'otp' => null,
+            ]);
             return response()->json(['status' => 'failed']);
         }
 
@@ -197,6 +231,7 @@ class WaitingListController extends Controller
 
         if ($waitingList) {
             $waitingList->status = 'verified';
+            $waitingList->verified_at = now();
             $waitingList->otp = null;
             $waitingList->save();
 
@@ -218,11 +253,11 @@ class WaitingListController extends Controller
                 $formattedPhone = '62' . substr($formattedPhone, 1);
             }
 
-            $pesanWA = "📢 PANGGILAN ANTREAN!\n\nHalo " . $queue->customer_name . ",\n\nSudah giliran Anda untuk bermain! Silahkan segera menuju ke meja kasir Andromeda Billiard untuk memilih meja yang tersedia. Terima kasih.";
+            $pesanWA = "📢 PANGGILAN ANTREAN!\n\nHalo " . $queue->customer_name . ",\n\nSudah giliran Anda untuk bermain! Silahkan segera menuju ke meja kasir Andromeda Billiard untuk memilih meja. Terima kasih.";
             $this->kirimWA($formattedPhone, $pesanWA, env('FONNTE_TOKEN'));
         }
 
-        return redirect()->back()->with('success', 'Panggilan berhasil dikirim via WhatsApp!');
+        return redirect()->back()->with('success', 'Antrean ' . $queue->customer_name . ' berhasil dipanggil!');
     }
 
     // 8. TOMBOL SKIP / NO SHOW
@@ -231,7 +266,7 @@ class WaitingListController extends Controller
         $queue = WaitingList::findOrFail($id);
         $queue->update(['status' => 'no_show']);
 
-        return redirect()->back()->with('warning', 'Antrean ' . $queue->customer_name . ' dikeluarkan dan ditandai sebagai No-Show.');
+        return redirect()->back()->with('warning', 'Antrean ' . $queue->customer_name . ' dicoreng dan dipindahkan ke Tab No-Show.');
     }
 
     // Helper Fonnte API

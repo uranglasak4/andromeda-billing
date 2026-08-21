@@ -183,7 +183,7 @@
                 .then(response => response.json())
                 .then(data => {
                     const tables = data.tables || [];
-                    const waitingList = data.waiting_list || [];
+                    const waitingList = data.waiting_list_monitor || [];
 
                     if (data.max_online_queue) {
                         maxOnlineLimit = parseInt(data.max_online_queue);
@@ -197,8 +197,7 @@
 
                     // 🔵 UBAH: Hitung antrean online aktif yang sudah lolos Lapis 1
                     currentOnlineCount = waitingList.filter(guest =>
-                        guest.tipe === 'online' && (guest.status === 'online_unverified' || guest.status ===
-                            'verified')
+                        guest.tipe === 'online' && (guest.status === 'not_verified' || guest.status === 'verified')
                     ).length;
 
                     tables.forEach(table => {
@@ -285,41 +284,44 @@
                     document.getElementById('customer-table-grid').innerHTML = tableGridHTML;
                     hasAvailableTable = checkAvailable;
 
+                    // KODE BARU (Sorting Urutan & Styling Disabled untuk Layer 2 Unverified)
                     let waitingHTML = '';
                     if (waitingList.length === 0) {
                         waitingHTML =
                             `<tr><td colspan="3" class="text-center text-muted py-4 small">🍃 Antrean kosong, meja siap dipesan.</td></tr>`;
                     } else {
-                        waitingList.forEach((guest, index) => {
-                            let statusBadgeHTML =
-                            '<span class="badge bg-secondary-lt px-2 py-1">WAITING</span>';
+                        let currentQueueNumber = 1;
+
+                        waitingList.forEach((guest) => {
+                            // Semua antrean aktif mendapat nomor urut berdasarkan created_at
+                            let numberBadgeHTML =
+                                `<span class="badge bg-secondary-lt">${currentQueueNumber++}</span>`;
+                            let rowStyleClass = 'fw-bold text-dark';
+                            let statusBadgeHTML = '';
 
                             if (guest.tipe === 'onsite') {
                                 statusBadgeHTML =
                                     '<span class="badge bg-success-lt px-2 py-1">📍 ON-SITE KASIR</span>';
-                            } else if (guest.tipe === 'online') {
-                                if (guest.status === 'pending') {
-                                    statusBadgeHTML =
-                                        '<span class="badge bg-warning-lt px-2 py-1">⏳ MENUNGGU OTP WEB</span>';
-                                } else if (guest.status === 'not_verified') {
-                                    statusBadgeHTML =
-                                        '<span class="badge bg-danger-lt px-2 py-1">⏳ ONLINE WEB UNVERIFIED</span>';
-                                } else if (guest.status === 'verified') {
-                                    statusBadgeHTML =
-                                        '<span class="badge bg-blue-lt px-2 py-1">🌐 ONLINE WEB VERIFIED</span>';
-                                } else if (guest.status === 'failed') {
-                                    statusBadgeHTML =
-                                        '<span class="badge bg-secondary-lt px-2 py-1">❌ GAGAL VERIFIED</span>';
-                                }
+                            } else if (guest.status === 'verified') {
+                                statusBadgeHTML =
+                                    '<span class="badge bg-blue-lt px-2 py-1">🌐 ONLINE WEB VERIFIED</span>';
+                            } else if (guest.status === 'not_verified') {
+                                statusBadgeHTML =
+                                    '<span class="badge bg-warning-lt px-2 py-1">⏳ ONLINE WEB UNVERIFIED</span>';
+                                rowStyleClass =
+                                    'text-dark opacity-75'; // tetap ada nomor, warna sedikit membedakan
+                            } else if (guest.status === 'pending') {
+                                statusBadgeHTML =
+                                    '<span class="badge bg-warning-lt px-2 py-1">⏳ MENUNGGU OTP WEB</span>';
                             }
 
                             waitingHTML += `
-        <tr class="fw-bold text-dark">
-            <td><span class="badge bg-secondary-lt">${index + 1}</span></td>
-            <td class="text-uppercase text-truncate" style="max-width: 120px;" title="${guest.customer_name}">${guest.customer_name}</td>
-            <td class="text-end">${statusBadgeHTML}</td>
-        </tr>
-    `;
+            <tr class="${rowStyleClass}">
+                <td>${numberBadgeHTML}</td>
+                <td class="text-uppercase text-truncate" style="max-width: 120px;" title="${guest.customer_name}">${guest.customer_name}</td>
+                <td class="text-end">${statusBadgeHTML}</td>
+            </tr>
+        `;
                         });
                     }
                     document.getElementById('customer-waiting-grid').innerHTML = waitingHTML;

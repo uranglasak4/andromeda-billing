@@ -187,60 +187,6 @@
         </div>
     </div>
 
-    {{-- <!-- TABEL LIST UNPAID / TAGIHAN PENDING -->
-    @if (isset($unpaidTransactions) && $unpaidTransactions->count() > 0)
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card border-warning shadow-sm">
-                    <div class="card-header bg-warning-lt py-2">
-                        <h3 class="card-title fw-bold text-dark mb-0">⏳ Daftar Tagihan Pending (Unpaid)</h3>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-vcenter card-table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>No. Nota</th>
-                                    <th>Customer</th>
-                                    <th>Meja</th>
-                                    <th>Tgl / Jam Stop</th>
-                                    <th>Total Tagihan</th>
-                                    <th class="text-center">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($unpaidTransactions as $unpaid)
-                                    <tr>
-                                        <td class="fw-bold">#{{ str_pad($unpaid->id, 6, '0', STR_PAD_LEFT) }}</td>
-                                        <td>{{ strtoupper($unpaid->customer_name) }}</td>
-                                        <td>Meja {{ $unpaid->poolTable->table_number ?? '-' }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($unpaid->end_time)->format('d/m/Y H:i') }}</td>
-                                        <td class="fw-bold text-danger">Rp
-                                            {{ number_format($unpaid->grand_total, 0, ',', '.') }}</td>
-                                        <td class="text-center">
-                                            <a href="{{ route('billing.receipt', $unpaid->id) }}" target="_blank"
-                                                class="btn btn-sm btn-outline-secondary me-1">
-                                                🖨️ Struk Tagihan
-                                            </a>
-                                            <button type="button" class="btn btn-sm btn-success fw-bold"
-                                                onclick="showPayUnpaidModal(
-            {{ $unpaid->id }},
-            '{{ $unpaid->table->name ?? ($unpaid->customer_name ?? 'Pending') }}',
-            {{ $unpaid->billing_price ?? 0 }},
-            {{ $unpaid->total_fnb ?? 0 }},
-            {{ $unpaid->grand_total ?? $unpaid->billing_price }}
-        )">
-                                                <i class="ti ti-cash me-1"></i> Pelunasan
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif --}}
 
     <!-- Modal Open Table -->
     <div class="modal modal-blur fade" id="modal-open-table" tabindex="-1" role="dialog" aria-hidden="true">
@@ -251,9 +197,34 @@
                     <input type="hidden" name="package_id" id="input-package-id" value="">
                     <div class="modal-body">
                         <div class="modal-title h3">Open Table Meja <span id="display-no-meja"></span></div>
+                        <input type="hidden" name="waiting_list_id" id="input-waiting-list-id" value="">
+
                         <div class="mb-3">
-                            <label class="form-label">Nama Customer</label>
-                            <input type="text" name="customer_name" class="form-control" placeholder="Nama..." required>
+                            <label class="form-label fw-bold">Nama Customer</label>
+
+                            @php
+                                // Ambil data WL yang berstatus 'call' saja
+                                $calledWL = isset($waitingCustomers)
+                                    ? $waitingCustomers->where('status', 'call')
+                                    : collect();
+                            @endphp
+
+                            @if ($calledWL->count() > 0)
+                                {{-- Jika ada WL status CALL, munculkan dropdown --}}
+                                <select id="select-wl-customer" class="form-select mb-2"
+                                    onchange="handleCustomerWLSelection(this)">
+                                    <option value="" selected>-- Input Nama Manual (Non-WL) --</option>
+                                    @foreach ($calledWL as $wl)
+                                        <option value="{{ $wl->id }}" data-name="{{ $wl->customer_name }}">
+                                            📢 [DIPANGGIL] {{ $wl->customer_name }} ({{ $wl->phone_number }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            @endif
+
+                            {{-- Input nama biasa (Tetap bawaanmu) --}}
+                            <input type="text" name="customer_name" id="input-customer-name" class="form-control"
+                                placeholder="Nama Customer..." required>
                         </div>
                         @php
                             use Carbon\Carbon;
@@ -1420,6 +1391,24 @@
             }
 
             calculateChangeAmount();
+        }
+
+        function handleCustomerWLSelection(selectElement) {
+            const selectedOption = selectElement.options[selectElement.selectedIndex];
+            const wlId = selectElement.value;
+            const customerName = selectedOption.getAttribute('data-name');
+
+            const inputName = document.getElementById('input-customer-name');
+            const hiddenWlId = document.getElementById('input-waiting-list-id');
+
+            if (wlId) {
+                inputName.value = customerName;
+                hiddenWlId.value = wlId;
+            } else {
+                inputName.value = '';
+                hiddenWlId.value = '';
+                inputName.focus();
+            }
         }
     </script>
 @endsection

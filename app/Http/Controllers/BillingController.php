@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\PoolTable;
 use App\Models\Transaction;
+use App\Models\WaitingList;
 use App\Models\Package;
 use Carbon\Carbon;
 
@@ -105,6 +106,14 @@ class BillingController extends Controller
             'duration' => $duration,
             'status' => 'running',
         ]);
+
+        // 🟢 TAMBAHAN TAHAP 2: Jika pilihan Open Table berasal dari WL, update status WL ke 'completed'
+        if ($request->filled('waiting_list_id')) {
+            $wl = WaitingList::find($request->waiting_list_id);
+            if ($wl) {
+                $wl->update(['status' => 'done']);
+            }
+        }
 
         // 2. OTOMATIS TAMBAHKAN FNB INCLUDE PAKET
         if ($billingType === 'package' && $packageId) {

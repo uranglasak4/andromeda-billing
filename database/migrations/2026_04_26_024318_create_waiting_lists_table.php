@@ -26,7 +26,8 @@ return new class extends Migration
                 'verified',      // Online yang sudah sukses lapor & check-in ke kasir
                 'call',          // Meja ready, kasir panggil nama customer (Kirim WA giliran main)
                 'expired',       // Online yang hangus otomatis karena telat lapor menit verifikasi
-                'no_show'        // Onsite/Online yang dipanggil tapi orangnya kabur/tidak ada respon
+                'no_show',
+                'done'           // Onsite/Online yang dipanggil tapi orangnya kabur/tidak ada respon
             ])->default('waiting'); // Secara default default-nya 'waiting' (bisa kita override di Controller saat simpan)
             $table->timestamp('verified_at')->nullable();
             $table->timestamps();
