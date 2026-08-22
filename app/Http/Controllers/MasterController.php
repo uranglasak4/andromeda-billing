@@ -341,12 +341,56 @@ class MasterController extends Controller
         $verificationTime = Setting::where('key', 'verification_time')->value('value') ?? 15;
         $maxOnlineQueue = Setting::where('key', 'max_online_queue')->value('value') ?? 10;
 
-        // ✅ Tambahkan ini agar tab waiting list bisa tampil
-        $waitingLists = \App\Models\WaitingList::whereDate('created_at', \Carbon\Carbon::today())
+        // Ambil Seluruh Antrean Hari Ini
+        $allWaitingLists = \App\Models\WaitingList::whereDate('created_at', \Carbon\Carbon::today())
             ->orderBy('created_at', 'asc')
             ->get();
 
-        return view('master.wlsetting', compact('verificationTime', 'maxOnlineQueue', 'waitingLists'));
+        // Filter Data Masing-Masing Tab
+        $waitingLists = $allWaitingLists->filter(function ($item) {
+            return in_array(strtolower($item->status), ['waiting', 'not_verified', 'verified', 'call']);
+        });
+
+        $tabOnsite = $allWaitingLists->filter(function ($item) {
+            return strtolower($item->tipe) === 'onsite' && in_array(strtolower($item->status), ['waiting', 'call']);
+        });
+
+        $tabOnlineVerified = $allWaitingLists->filter(function ($item) {
+            return strtolower($item->tipe) === 'online' && in_array(strtolower($item->status), ['verified', 'call']);
+        });
+
+        $tabOnlineUnverified = $allWaitingLists->filter(function ($item) {
+            return strtolower($item->tipe) === 'online' && strtolower($item->status) === 'not_verified';
+        });
+
+        $tabNoShow = $allWaitingLists->filter(function ($item) {
+            return strtolower($item->status) === 'no_show';
+        });
+
+        $tabExpired = $allWaitingLists->filter(function ($item) {
+            return strtolower($item->status) === 'expired';
+        });
+
+        $tabFailed = $allWaitingLists->filter(function ($item) {
+            return in_array(strtolower($item->status), ['failed', 'gagal']);
+        });
+
+        $tabDone = $allWaitingLists->filter(function ($item) {
+            return in_array(strtolower($item->status), ['done', 'check_in', 'completed', 'selesai']);
+        });
+
+        return view('master.wlsetting', compact(
+            'verificationTime',
+            'maxOnlineQueue',
+            'waitingLists',
+            'tabOnsite',
+            'tabOnlineVerified',
+            'tabOnlineUnverified',
+            'tabNoShow',
+            'tabExpired',
+            'tabFailed',
+            'tabDone'
+        ));
     }
 
     // Fungsi menyimpan/mengupdate konfigurasi dari form Master

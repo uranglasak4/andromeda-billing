@@ -95,12 +95,12 @@
                                     role="tab">📍 On-Site (Kasir)</a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a href="#tab-online-unverified" class="nav-link fw-bold py-3 px-3 text-warning"
-                                    data-bs-toggle="tab" role="tab">⏳ Online (Belum Verifikasi)</a>
-                            </li>
-                            <li class="nav-item" role="presentation">
                                 <a href="#tab-online-verified" class="nav-link fw-bold py-3 px-3 text-azure"
                                     data-bs-toggle="tab" role="tab">✅ Online (Terverifikasi)</a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a href="#tab-online-unverified" class="nav-link fw-bold py-3 px-3 text-warning"
+                                    data-bs-toggle="tab" role="tab">⏳ Online (Belum Verifikasi)</a>
                             </li>
                             <!-- TAB TAMBAHAN BARU DARI GEMINI -->
                             <li class="nav-item" role="presentation">
@@ -115,65 +115,47 @@
                                 <a href="#tab-failed" class="nav-link fw-bold py-3 px-3 text-secondary" data-bs-toggle="tab"
                                     role="tab">❌ Gagal Verifikasi L1</a>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <a href="#tab-done" class="nav-link fw-bold py-3 px-3 text-success" data-bs-toggle="tab"
+                                    role="tab">✔️ Selesai</a>
+                            </li>
                         </ul>
                     </div>
 
                     <!-- ISI KONTEN DATA MASING-MASING TAB -->
                     <div class="card-body p-0">
                         <div class="tab-content">
-
-                            <!-- 1. TAB SEMUA ANTREAN YANG MASIH AKTIF -->
+                            <!-- 1. TAB SEMUA AKTIF -->
                             <div class="tab-pane fade show active" id="tab-semua" role="tabpanel">
-                                @include('admin.table-loop', [
-                                    'items' => $waitingLists->whereIn('status', [
-                                        'waiting',
-                                        'not_verified',
-                                        'verified',
-                                        'call',
-                                    ]),
-                                ])
+                                @include('admin.table-loop', ['items' => $waitingLists])
                             </div>
-
-                            <!-- 2. TAB ON-SITE ONLY -->
+                            <!-- 2. TAB ON-SITE -->
                             <div class="tab-pane fade" id="tab-onsite" role="tabpanel">
-                                @include('admin.table-loop', [
-                                    'items' => $waitingLists->where('tipe', 'onsite')->whereIn('status', ['waiting', 'call']),
-                                ])
+                                @include('admin.table-loop', ['items' => $tabOnsite])
                             </div>
-
-                            <!-- 3. TAB ONLINE BELUM VERIFIKASI -->
-                            <div class="tab-pane fade" id="tab-online-unverified" role="tabpanel">
-                                @include('admin.table-loop', [
-                                    'items' => $waitingLists->where('tipe', 'online')->where('status', 'not_verified'),
-                                ])
-                            </div>
-
-                            <!-- 4. TAB ONLINE TERVERIFIKASI -->
+                            <!-- 3. TAB ONLINE TERVERIFIKASI -->
                             <div class="tab-pane fade" id="tab-online-verified" role="tabpanel">
-                                @include('admin.table-loop', [
-                                    'items' => $waitingLists->where('tipe', 'online')->whereIn('status', ['verified', 'call']),
-                                ])
+                                @include('admin.table-loop', ['items' => $tabOnlineVerified])
                             </div>
-
-                            <!-- 5. TAB NO-SHOW (DIPANGGIL TAPI KABUR) -->
+                            <!-- 4. TAB ONLINE BELUM VERIFIKASI -->
+                            <div class="tab-pane fade" id="tab-online-unverified" role="tabpanel">
+                                @include('admin.table-loop', ['items' => $tabOnlineUnverified])
+                            </div>
+                            <!-- 5. TAB NO-SHOW / KABUR -->
                             <div class="tab-pane fade" id="tab-no-show" role="tabpanel">
-                                @include('admin.table-loop', [
-                                    'items' => $waitingLists->where('status', 'no_show'),
-                                ])
+                                @include('admin.table-loop', ['items' => $tabNoShow])
                             </div>
-
-                            <!-- 6. TAB EXPIRED (ONLINE YANG TELAT VERIFIKASI OTP) -->
+                            <!-- 6. TAB EXPIRED / GAGAL L2 -->
                             <div class="tab-pane fade" id="tab-expired" role="tabpanel">
-                                @include('admin.table-loop', [
-                                    'items' => $waitingLists->where('status', 'expired'),
-                                ])
+                                @include('admin.table-loop', ['items' => $tabExpired])
                             </div>
-
-                            <!-- 7. TAB FAILED (GAGAL VERIFIKASI OTP) -->
+                            <!-- 7. TAB GAGAL L1 / FAILED -->
                             <div class="tab-pane fade" id="tab-failed" role="tabpanel">
-                                @include('admin.table-loop', [
-                                    'items' => $waitingLists->where('status', 'failed'),
-                                ])
+                                @include('admin.table-loop', ['items' => $tabFailed])
+                            </div>
+                            <!-- 8. TAB SELESAI / CHECK-IN -->
+                            <div class="tab-pane fade" id="tab-done" role="tabpanel">
+                                @include('admin.table-loop', ['items' => $tabDone])
                             </div>
                         </div>
                     </div>

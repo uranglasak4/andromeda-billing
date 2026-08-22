@@ -102,8 +102,22 @@
                             </div>
 
                             <div id="box-input-name" class="d-none">
-                                <input type="text" id="inp_customer_name" class="form-control form-control-lg fw-bold"
-                                    placeholder="Nama Pembeli (Waiting List / Walk-In)">
+                                <div class="input-group">
+                                    <input type="text" id="inp_customer_name" list="waitinglist_options"
+                                        class="form-control form-control-lg fw-bold"
+                                        placeholder="Nama Pembeli (Waiting List / Walk-In)" autocomplete="off">
+                                    <datalist id="waitinglist_options">
+                                        @if (isset($waitingLists) && count($waitingLists) > 0)
+                                            @foreach ($waitingLists as $wl)
+                                                <option value="{{ $wl->customer_name }}">
+                                                    [WL] {{ $wl->customer_name }} ({{ strtoupper($wl->status) }})
+                                                </option>
+                                            @endforeach
+                                        @endif
+                                    </datalist>
+                                </div>
+                                <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;">*Ketik manual untuk
+                                    Walk-In atau klik 2x untuk pilih dari Waiting List.</small>
                             </div>
                         </div>
 
@@ -443,14 +457,14 @@
                 </td>
                 <td style="width: 110px;">
                     ${isPackage ? `
-                                    <div class="text-center fw-bold text-muted">${item.stock} Pcs</div>
-                                ` : `
-                                    <div class="input-group input-group-sm">
-                                        <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, -1)">-</button>
-                                        <input type="text" class="form-control text-center px-0 fw-bold" value="${item.stock}" readonly>
-                                        <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, 1)">+</button>
-                                    </div>
-                                `}
+                                        <div class="text-center fw-bold text-muted">${item.stock} Pcs</div>
+                                    ` : `
+                                        <div class="input-group input-group-sm">
+                                            <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, -1)">-</button>
+                                            <input type="text" class="form-control text-center px-0 fw-bold" value="${item.stock}" readonly>
+                                            <button class="btn btn-outline-secondary px-2" type="button" onclick="updateQty(${item.id}, 1)">+</button>
+                                        </div>
+                                    `}
                 </td>
                 <td class="text-end fw-bold pe-0 text-dark">
                     Rp ${numberFormat(itemSubtotal)}

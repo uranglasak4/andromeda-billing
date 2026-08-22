@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Http;
 class WaitingListController extends Controller
 {
     // 1. TAMPILKAN HALAMAN UTAMA KASIR + CEK OTOMATIS EXPIRED LAPIS 2
-   public function index()
+    public function index()
     {
         // Ambil menit regulasi dari setting master (contoh: 15 menit ke kasir)
         $limitMinutes = Setting::where('key', 'verification_time')->value('value') ?? 15;
@@ -42,26 +42,78 @@ class WaitingListController extends Controller
 
         $canRegister = $totalWaiting >= $availableTables;
 
-        // Ambil data antrean aktif hari ini (Prioritas: Call > Ready/Verified > Unverified)
-        $waitingLists = WaitingList::whereDate('created_at', Carbon::today())
-            ->whereIn('status', ['waiting', 'not_verified', 'verified', 'call'])
+        // -----------------------------------------------------------------------
+        // AMBIL SELURUH DATA ANTREAN HARI INI (Semua Status)
+        // -----------------------------------------------------------------------
+        $allWaitingLists = WaitingList::whereDate('created_at', Carbon::today())
             ->orderByRaw("
-                CASE
-                    WHEN status = 'call' THEN 1
-                    WHEN tipe = 'onsite' OR status = 'verified' THEN 2
-                    WHEN status = 'not_verified' THEN 3
-                    ELSE 4
-                END ASC
-            ")
+            CASE
+                WHEN status = 'call' THEN 1
+                WHEN tipe = 'onsite' OR status = 'verified' THEN 2
+                WHEN status = 'not_verified' THEN 3
+                ELSE 4
+            END ASC
+        ")
             ->orderBy('created_at', 'asc')
             ->get();
+
+        // -----------------------------------------------------------------------
+        // FILTER DATA UNTUK MASING-MASING TAB (Case-Insensitive)
+        // -----------------------------------------------------------------------
+
+        // 1. Tab Semua Aktif (Sesuai query bawaan Anda)
+        $waitingLists = $allWaitingLists->filter(function ($item) {
+            return in_array(strtolower($item->status), ['waiting', 'not_verified', 'verified', 'call']);
+        });
+
+        // 2. Tab On-Site
+        $tabOnsite = $allWaitingLists->filter(function ($item) {
+            return strtolower($item->tipe) === 'onsite' && in_array(strtolower($item->status), ['waiting', 'call']);
+        });
+
+        // 3. Tab Online Belum Verifikasi (Lapis 2)
+        $tabOnlineUnverified = $allWaitingLists->filter(function ($item) {
+            return strtolower($item->tipe) === 'online' && strtolower($item->status) === 'not_verified';
+        });
+
+        // 4. Tab Online Terverifikasi
+        $tabOnlineVerified = $allWaitingLists->filter(function ($item) {
+            return strtolower($item->tipe) === 'online' && in_array(strtolower($item->status), ['verified', 'call']);
+        });
+
+        // 5. Tab No-Show / Kabur
+        $tabNoShow = $allWaitingLists->filter(function ($item) {
+            return strtolower($item->status) === 'no_show';
+        });
+
+        // 6. Tab Expired / Gagal L2
+        $tabExpired = $allWaitingLists->filter(function ($item) {
+            return strtolower($item->status) === 'expired';
+        });
+
+        // 7. Tab Gagal L1 / Failed
+        $tabFailed = $allWaitingLists->filter(function ($item) {
+            return in_array(strtolower($item->status), ['failed', 'gagal']);
+        });
+
+        // 8. Tab Selesai / Check-In / Completed
+        $tabDone = $allWaitingLists->filter(function ($item) {
+            return in_array(strtolower($item->status), ['done', 'check_in', 'completed']);
+        });
 
         return view('admin.waitinglist', compact(
             'waitingLists',
             'limitMinutes',
             'canRegister',
             'availableTables',
-            'totalWaiting'
+            'totalWaiting',
+            'tabOnsite',
+            'tabOnlineUnverified',
+            'tabOnlineVerified',
+            'tabNoShow',
+            'tabExpired',
+            'tabFailed',
+            'tabDone'
         ));
     }
 

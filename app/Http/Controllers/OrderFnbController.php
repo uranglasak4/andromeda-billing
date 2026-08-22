@@ -7,6 +7,7 @@ use App\Models\FnbProduct;
 use App\Models\Transaction;
 use App\Models\OrderFnb;
 use App\Models\FnbCategory;
+use App\Models\WaitingList;
 
 class OrderFnbController extends Controller
 {
@@ -27,7 +28,9 @@ class OrderFnbController extends Controller
             ->take(10)
             ->get();
 
-        return view('admin.orderfnb', compact('products', 'categories', 'activeTransactions', 'recentOrders'));
+        $waitingLists = WaitingList::whereIn('status', ['waiting', 'verified'])->get();
+
+        return view('admin.orderfnb', compact('products', 'categories', 'activeTransactions', 'recentOrders', 'waitingLists'));
     }
 
     public function store(Request $request)
