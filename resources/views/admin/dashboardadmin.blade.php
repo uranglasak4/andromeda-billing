@@ -1410,5 +1410,27 @@
                 inputName.focus();
             }
         }
+
+        document.getElementById('form-payment-billing').onsubmit = function(e) {
+            const payMethod = document.getElementById('payment-method-select').value;
+
+            // Hanya cek nominal jika metode pembayaran adalah Cash
+            if (payMethod === 'cash') {
+                // Ambil nilai nominal uang yang diinput kasir
+                const payAmount = parseFloat(document.getElementById('pay-amount-input').value) || 0;
+
+                // Ambil grand total tagihan (pastikan variabel global currentGrandTotal terisi angka bersih)
+                const grandTotal = parseFloat(currentGrandTotal) || 0;
+
+                if (payAmount < grandTotal) {
+                    e.preventDefault(); // Batalkan proses kirim form
+                    alert('Uang customer kurang!');
+                    document.getElementById('pay-amount-input').focus();
+                    return false;
+                }
+            }
+
+            return confirm('Proses pembayaran dan selesaikan billing?');
+        };
     </script>
 @endsection

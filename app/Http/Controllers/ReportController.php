@@ -40,18 +40,23 @@ class ReportController extends Controller
             $query->where('closed_by', $cashierId);
         }
 
-        $transactions = $query->orderBy('id', 'desc')->get();
-
         // 5. Ambil Daftar Semua Kasir untuk Dropdown
         $cashiers = User::orderBy('name', 'asc')->get();
 
-        // 6. Hitung Total Ringkasan
-        $totalOmset        = $transactions->sum('grand_total');
-        $totalCash         = $transactions->where('payment_method', 'cash')->sum('grand_total');
-        $totalNonCash      = $transactions->where('payment_method', '!=', 'cash')->sum('grand_total');
-        $totalTransactions = $transactions->count();
+        // 6. Hitung Total Ringkasan (Menggunakan clone $query agar akurat untuk seluruh rentang tanggal)
+        $totalOmset        = (clone $query)->sum('grand_total');
+        $totalCash         = (clone $query)->where('payment_method', 'cash')->sum('grand_total');
+        $totalNonCash      = (clone $query)->where('payment_method', '!=', 'cash')->sum('grand_total');
+        $totalTransactions = (clone $query)->count();
 
-        // 7. Teks Periode Laporan
+        // Tambahan breakdown Sewa Meja & FnB untuk Card Total Omset
+        $totalBillPrice    = (clone $query)->sum('bill_price');
+        $totalFnbPrice     = (clone $query)->sum('fnb_price');
+
+        // 7. Urutkan & Paginate 15 Data Per Halaman
+        $transactions = $query->orderBy('id', 'desc')->paginate(15);
+
+        // 8. Teks Periode Laporan
         $periodText = ($startDate === $endDate)
             ? Carbon::parse($startDate)->format('d/m/Y')
             : Carbon::parse($startDate)->format('d/m/Y') . ' - ' . Carbon::parse($endDate)->format('d/m/Y');
@@ -63,6 +68,8 @@ class ReportController extends Controller
             'totalCash',
             'totalNonCash',
             'totalTransactions',
+            'totalBillPrice',
+            'totalFnbPrice',
             'startDate',
             'endDate',
             'cashierId',

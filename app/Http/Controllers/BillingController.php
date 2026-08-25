@@ -221,6 +221,12 @@ class BillingController extends Controller
 
         $paymentMethod = $request->payment_method ?? 'cash';
         $payAmount = (int) ($request->pay_amount ?? $grandTotal);
+
+        // VALIDASI UANG CUSTOMER KURANG (HANYA UNTUK CASH)
+        if ($paymentMethod === 'cash' && $payAmount < $grandTotal) {
+            return redirect()->back()->with('error', 'Pembayaran gagal! Uang customer kurang.');
+        }
+
         $changeAmount = max(0, $payAmount - $grandTotal);
 
         $transaction->update([

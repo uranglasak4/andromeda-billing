@@ -8,6 +8,7 @@ use App\Models\Transaction;
 use App\Models\OrderFnb;
 use App\Models\FnbCategory;
 use App\Models\WaitingList;
+use Carbon\Carbon;
 
 class OrderFnbController extends Controller
 {
@@ -28,7 +29,10 @@ class OrderFnbController extends Controller
             ->take(10)
             ->get();
 
-        $waitingLists = WaitingList::whereIn('status', ['waiting', 'verified'])->get();
+        // Disesuaikan agar memfilter antrean HARI INI saja (sinkron dengan Admin & WaitingList Controller)
+        $waitingLists = WaitingList::whereDate('created_at', Carbon::today())
+            ->whereIn('status', ['waiting', 'verified', 'call'])
+            ->get();
 
         return view('admin.orderfnb', compact('products', 'categories', 'activeTransactions', 'recentOrders', 'waitingLists'));
     }
