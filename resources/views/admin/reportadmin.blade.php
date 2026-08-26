@@ -14,12 +14,15 @@
                 <div class="card border-left-primary shadow h-100 py-2">
                     <div class="card-body">
                         <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Omset</div>
-                        <div class="h5 mb-1 font-weight-bold text-gray-800">Rp {{ number_format($totalOmset, 0, ',', '.') }}</div>
+                        <div class="h5 mb-2 font-weight-bold text-gray-800">Rp {{ number_format($totalOmset, 0, ',', '.') }}
+                        </div>
 
-                        <!-- Breakdown Tambahan Ringkas -->
-                        <div class="border-top pt-1 mt-1 text-xs text-muted d-flex justify-content-between">
-                            <span>Meja: <strong>Rp {{ number_format($totalBillPrice ?? 0, 0, ',', '.') }}</strong></span>
-                            <span>FnB: <strong>Rp {{ number_format($totalFnbPrice ?? 0, 0, ',', '.') }}</strong></span>
+                        <!-- Breakdown Billing & FnB (Berurutan ke bawah) -->
+                        <div class="border-top pt-2 mt-1 text-xs text-muted">
+                            <div class="mb-1">Total Billing: <strong>Rp
+                                    {{ number_format($totalBillPrice ?? 0, 0, ',', '.') }}</strong></div>
+                            <div>Total FnB: <strong>Rp {{ number_format($totalFnbPrice ?? 0, 0, ',', '.') }}</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -30,7 +33,8 @@
                 <div class="card border-left-success shadow h-100 py-2">
                     <div class="card-body">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Uang Cash (Laci Kasir)</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">Rp {{ number_format($totalCash, 0, ',', '.') }}</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Rp {{ number_format($totalCash, 0, ',', '.') }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -40,7 +44,8 @@
                 <div class="card border-left-info shadow h-100 py-2">
                     <div class="card-body">
                         <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Non-Cash (QRIS / Transfer)</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">Rp {{ number_format($totalNonCash, 0, ',', '.') }}</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Rp
+                            {{ number_format($totalNonCash, 0, ',', '.') }}</div>
                     </div>
                 </div>
             </div>
@@ -51,7 +56,8 @@
                     <div class="card-body">
                         <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Total Transaksi</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ method_exists($transactions, 'total') ? number_format($transactions->total()) : number_format($totalTransactions) }} Transaksi
+                            {{ method_exists($transactions, 'total') ? number_format($transactions->total()) : number_format($totalTransactions) }}
+                            Transaksi
                         </div>
                     </div>
                 </div>
@@ -66,15 +72,17 @@
                     Daftar Transaksi Selesai ({{ $periodText }})
                 </h6>
 
-                <!-- FORM FILTER TANGGAL DAN KASIR (1 BARIS RAPAT) -->
-                <form action="{{ route('admin.reportadmin') }}" method="GET" class="d-flex align-items-center m-0" style="gap: 6px;">
+                <!-- FORM FILTER TANGGAL, KATEGORI, SEARCH, KASIR -->
+                <form action="{{ route('admin.reportadmin') }}" method="GET" class="d-flex align-items-center m-0"
+                    style="gap: 6px;">
 
                     <!-- Dari Tanggal -->
                     <div class="input-group input-group-sm" style="width: auto;">
                         <div class="input-group-prepend">
                             <span class="input-group-text bg-white text-muted">Dari:</span>
                         </div>
-                        <input type="date" name="start_date" class="form-control" value="{{ $startDate }}" style="width: 130px;">
+                        <input type="date" name="start_date" class="form-control" value="{{ $startDate }}"
+                            style="width: 130px;">
                     </div>
 
                     <!-- Sampai Tanggal -->
@@ -82,7 +90,24 @@
                         <div class="input-group-prepend">
                             <span class="input-group-text bg-white text-muted">Sampai:</span>
                         </div>
-                        <input type="date" name="end_date" class="form-control" value="{{ $endDate }}" style="width: 130px;">
+                        <input type="date" name="end_date" class="form-control" value="{{ $endDate }}"
+                            style="width: 130px;">
+                    </div>
+
+                    <!-- Dropdown Kategori Transaksi -->
+                    <select name="type" class="custom-select custom-select-sm" style="width: auto;">
+                        <option value="all" {{ request('type') == 'all' || !request('type') ? 'selected' : '' }}>--
+                            Semua Transaksi --</option>
+                        <option value="blm" {{ request('type') == 'blm' ? 'selected' : '' }}>BLM (Meja Only)</option>
+                        <option value="fnb" {{ request('type') == 'fnb' ? 'selected' : '' }}>FNB (FnB Only)</option>
+                        <option value="billing_fnb" {{ request('type') == 'billing_fnb' ? 'selected' : '' }}>ALL (Meja +
+                            FnB)</option>
+                    </select>
+
+                    <!-- Input Search (4 Digit Akhir Nota / Nama Cust / Meja) -->
+                    <div class="input-group input-group-sm" style="width: 170px;">
+                        <input type="text" name="search" class="form-control" placeholder="4 Digit/Cust/Meja..."
+                            value="{{ request('search') }}" autocomplete="off">
                     </div>
 
                     <!-- Dropdown Filter Kasir -->
@@ -169,7 +194,8 @@
                                     <!-- 6. No Meja -->
                                     <td>
                                         @if ($item->pool_table_id && $item->poolTable)
-                                            <span class="badge badge-primary">Meja {{ $item->poolTable->table_number }}</span>
+                                            <span class="badge badge-primary">Meja
+                                                {{ $item->poolTable->table_number }}</span>
                                         @else
                                             <span class="badge badge-info">Standalone</span>
                                         @endif
@@ -188,20 +214,31 @@
                                             <strong>{{ round(($item->duration ?? 60) / 60) }} Jam</strong>
                                         @elseif($item->billing_type === 'package')
                                             @php
-                                                $packageHours = $item->package->duration_hours ?? round(($item->duration ?? 60) / 60);
+                                                $packageHours =
+                                                    $item->package->duration_hours ??
+                                                    round(($item->duration ?? 60) / 60);
                                             @endphp
                                             <strong>{{ $packageHours }} Jam</strong>
                                         @elseif($item->billing_type === 'personal')
                                             @php
-                                                $start = $item->start_time ? \Carbon\Carbon::parse($item->start_time) : null;
-                                                $end = $item->end_time ? \Carbon\Carbon::parse($item->end_time) : \Carbon\Carbon::parse($item->updated_at);
+                                                $start = $item->start_time
+                                                    ? \Carbon\Carbon::parse($item->start_time)
+                                                    : null;
+                                                $end = $item->end_time
+                                                    ? \Carbon\Carbon::parse($item->end_time)
+                                                    : \Carbon\Carbon::parse($item->updated_at);
 
                                                 if ($start && $end) {
                                                     $totalSeconds = $start->diffInSeconds($end);
                                                     $hours = floor($totalSeconds / 3600);
                                                     $minutes = floor(($totalSeconds % 3600) / 60);
                                                     $seconds = $totalSeconds % 60;
-                                                    $formattedDuration = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+                                                    $formattedDuration = sprintf(
+                                                        '%02d:%02d:%02d',
+                                                        $hours,
+                                                        $minutes,
+                                                        $seconds,
+                                                    );
                                                 } else {
                                                     $formattedDuration = '00:00:00';
                                                 }
@@ -234,7 +271,8 @@
 
                                     <!-- 13. Metode -->
                                     <td>
-                                        <span class="badge badge-{{ $item->payment_method == 'cash' ? 'success' : 'warning' }}">
+                                        <span
+                                            class="badge badge-{{ $item->payment_method == 'cash' ? 'success' : 'warning' }}">
                                             {{ strtoupper($item->payment_method) }}
                                         </span>
                                     </td>
@@ -251,7 +289,8 @@
 
                                     <!-- 15. Aksi -->
                                     <td>
-                                        <a href="{{ route('billing.receipt', $item->id) }}" target="_blank" class="btn btn-sm btn-secondary">
+                                        <a href="{{ route('billing.receipt', $item->id) }}" target="_blank"
+                                            class="btn btn-sm btn-secondary">
                                             🖨️ Struk
                                         </a>
                                     </td>
@@ -271,7 +310,8 @@
                 @if (method_exists($transactions, 'links'))
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <small class="text-muted">
-                            Menampilkan {{ $transactions->firstItem() ?? 0 }} - {{ $transactions->lastItem() ?? 0 }} dari {{ $transactions->total() }} transaksi
+                            Menampilkan {{ $transactions->firstItem() ?? 0 }} - {{ $transactions->lastItem() ?? 0 }} dari
+                            {{ $transactions->total() }} transaksi
                         </small>
                         <div>
                             {{ $transactions->appends(request()->query())->links('pagination::bootstrap-4') }}
