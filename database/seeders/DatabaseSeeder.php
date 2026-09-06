@@ -25,26 +25,40 @@ class DatabaseSeeder extends Seeder
         // --- 1. SEED USERS ---
         // Buat user untuk login admin dan owner
         User::updateOrCreate([
+            'name' => 'Jid',
+            'username' => 'jid',
+            'password' => Hash::make('jid'),
+            'role' => 'master',
+            'is_active' => true
+        ]);
+        User::updateOrCreate([
             'name' => 'Wik',
             'username' => 'wik',
             'password' => Hash::make('wik'),
             'role' => 'master',
+            'is_active' => true
         ]);
-
+        User::updateOrCreate([
+            'name' => 'Gib',
+            'username' => 'gib',
+            'password' => Hash::make('gib'),
+            'role' => 'master',
+            'is_active' => true
+        ]);
         User::updateOrCreate([
             'name' => 'Wok',
             'username' => 'wok',
             'password' => Hash::make('wok'),
             'role' => 'admin',
+            'is_active' => true
         ]);
-
         User::updateOrCreate([
             'name' => 'Ted',
             'username' => 'ted',
             'password' => Hash::make('ted'),
             'role' => 'admin',
+            'is_active' => true
         ]);
-
 
         // --- 2. SEED POOL TABLES (16 Meja Sekaligus) ---
         // Ini bagian yang akan menampilkan 16 meja di dashboard admin kamu

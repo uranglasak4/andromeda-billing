@@ -143,7 +143,7 @@
                                 </li>
                                 <li class="nav-item {{ Route::is('master.users') ? 'active' : '' }}">
                                     <a class="nav-link" href="{{ route('master.users') }}">
-                                        <span class="nav-link-title">Manajemen Akun Kasir</span>
+                                        <span class="nav-link-title">Manajemen Akun</span>
                                     </a>
                                 </li>
 

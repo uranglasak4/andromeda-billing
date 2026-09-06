@@ -9,7 +9,7 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up()
+    public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('username')->unique();
             $table->string('password');
             $table->enum('role', ['master', 'admin'])->default('admin'); // Role Owner & Kasir
+            $table->boolean('is_active')->default(true); // Status aktif/nonaktif
+            $table->timestamp('last_login_at')->nullable(); // Waktu login terakhir
             $table->timestamps();
         });
     }

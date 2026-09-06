@@ -5,6 +5,8 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Auth\Events\Authenticated;
+use Illuminate\Support\Facades\Event;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,5 +32,13 @@ class AppServiceProvider extends ServiceProvider
         if (request()->server('HTTP_X_FORWARDED_HOST')) {
             \URL::forceRootUrl('https://' . request()->server('HTTP_X_FORWARDED_HOST'));
         }
+
+        // 3. Catat waktu login terakhir setiap ada user yang login
+        Event::listen(Authenticated::class, function ($event) {
+            if ($event->user) {
+                $event->user->timestamps = false; // Mencegah kolom updated_at ikut berubah saat login
+                $event->user->update(['last_login_at' => now()]);
+            }
+        });
     }
 }

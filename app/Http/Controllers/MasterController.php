@@ -16,12 +16,10 @@ class MasterController extends Controller
 {
     public function index()
     {
+        // 1. Ambil semua data meja (tanpa eager loading transaksi aktif)
         $tables = PoolTable::orderBy('table_number', 'asc')->get();
 
-        $omzetHariIni = Transaction::where('status', 'finished')
-            ->whereDate('end_time', today())
-            ->sum('grand_total');
-
+        // 2. Hitung statistik riwayat transaksi meja khusus HARI INI
         foreach ($tables as $table) {
             $historyToday = $table->transactions()
                 ->where('status', 'finished')
@@ -32,10 +30,54 @@ class MasterController extends Controller
             $table->total_waktu = $historyToday->sum('duration');
         }
 
+        // 3. Omzet total hari ini
+        $omzetHariIni = Transaction::where('status', 'finished')
+            ->whereDate('end_time', today())
+            ->sum('grand_total');
+
+        // 4. Hitung jumlah meja yang sedang terisi
         $mejaTerisi = $tables->whereIn('status', ['playing', 'personal'])->count();
         $waitingLists = \App\Models\WaitingList::where('status', 'waiting')->get();
 
-        return view('master.dashboardmaster', compact('tables', 'omzetHariIni', 'mejaTerisi', 'waitingLists'));
+        // 5. Breakdown Billing & FnB
+        $billingHariIni = Transaction::where('status', 'finished')
+            ->whereDate('end_time', today())
+            ->sum('bill_price');
+
+        $fnbHariIni = Transaction::where('status', 'finished')
+            ->whereDate('end_time', today())
+            ->sum('fnb_price');
+
+        // 6. Ambil Kasir Shift Aktif saat ini
+        $activeTrxToday = Transaction::whereIn('status', ['running', 'active'])
+            ->whereDate('start_time', today())
+            ->latest()
+            ->first();
+
+        $activeCashier = $activeTrxToday ? \App\Models\User::find($activeTrxToday->created_by) : null;
+
+        // 7. Data Grafik Omzet 7 Hari Terakhir
+        $chartDates = [];
+        $chartOmset = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = \Carbon\Carbon::today()->subDays($i);
+            $chartDates[] = $date->format('d M');
+            $chartOmset[] = Transaction::where('status', 'finished')
+                ->whereDate('end_time', $date)
+                ->sum('grand_total');
+        }
+
+        return view('master.dashboardmaster', compact(
+            'tables',
+            'omzetHariIni',
+            'mejaTerisi',
+            'waitingLists',
+            'billingHariIni',
+            'fnbHariIni',
+            'activeCashier',
+            'chartDates',
+            'chartOmset'
+        ));
     }
 
     public function pricingIndex()

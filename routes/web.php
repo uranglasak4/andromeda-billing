@@ -111,6 +111,7 @@ Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () 
     Route::post('/users/store', [UserController::class, 'store'])->name('master.users.store');
     Route::post('/users/update/{id}', [UserController::class, 'update'])->name('master.users.update');
     Route::delete('/users/delete/{id}', [UserController::class, 'destroy'])->name('master.users.destroy');
+    Route::patch('/users/toggle-status/{id}', [UserController::class, 'toggleStatus'])->name('master.users.toggle-status');
 
     Route::get('/waiting-list/setting', [MasterController::class, 'waitingListSetting'])->name('master.wlsetting');
     Route::post('/waiting-list/setting/update', [MasterController::class, 'updateWaitingListSetting'])->name('master.waitinglist.update');
