@@ -44,7 +44,8 @@
                                     <td><span class="text-muted">{{ $u->username }}</span></td>
                                     <td>
                                         @if ($u->id === 1)
-                                            <span class="badge text-dark font-weight-bold" style="background-color: #ffd700;">
+                                            <span class="badge text-dark font-weight-bold"
+                                                style="background-color: #ffd700;">
                                                 OWNER
                                             </span>
                                         @else
@@ -76,10 +77,12 @@
                                         </button>
 
                                         @if ($u->id !== 1 && (auth()->id() === 1 || $u->role !== 'master'))
-                                            <form action="{{ route('master.users.toggle-status', $u->id) }}" method="POST" class="d-inline ms-1">
+                                            <form action="{{ route('master.users.toggle-status', $u->id) }}" method="POST"
+                                                class="d-inline ms-1">
                                                 @csrf
                                                 @method('PATCH')
-                                                <button type="submit" class="btn btn-sm {{ $u->is_active ? 'btn-outline-warning' : 'btn-outline-success' }}"
+                                                <button type="submit"
+                                                    class="btn btn-sm {{ $u->is_active ? 'btn-warning' : 'btn-success' }}"
                                                     onclick="return confirm('Ubah status akun {{ $u->name }}?')">
                                                     {{ $u->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
                                                 </button>
@@ -94,6 +97,15 @@
                             @endforelse
                         </tbody>
                     </table>
+                    <div class="card-footer d-flex align-items-center gap-3">
+                        <div>
+                            {{ $users->links('pagination::bootstrap-4') }}
+                        </div>
+                        <p class="m-0 text-muted">
+                            Showing <span>{{ $users->firstItem() ?? 0 }}</span> to
+                            <span>{{ $users->lastItem() ?? 0 }}</span> of <span>{{ $users->total() }}</span> entries
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -294,7 +306,8 @@
                     const inputName = document.getElementById('edit-name');
                     const inputUsername = document.getElementById('edit-username');
                     const inputPassword = editModal.querySelector('input[name="password"]');
-                    const btnSubmitEdit = editModal.querySelector('button[type="submit"][form="form-edit-user"]');
+                    const btnSubmitEdit = editModal.querySelector(
+                        'button[type="submit"][form="form-edit-user"]');
                     const editForm = document.getElementById('form-edit-user');
 
                     const isSelf = (id === currentUserId);

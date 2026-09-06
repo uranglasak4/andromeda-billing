@@ -18,7 +18,7 @@ class UserController extends Controller
                 WHEN role = 'admin' THEN 3
                 ELSE 4
             END ASC
-        ")->orderBy('name', 'asc')->paginate(10);
+        ")->orderBy('name', 'asc')->paginate(15);
 
         return view('master.users', compact('users'));
     }
