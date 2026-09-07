@@ -24,7 +24,7 @@
                     document.addEventListener('DOMContentLoaded', function() {
                         Swal.fire({
                             icon: 'error',
-                            title: 'Akses Ditolak / Batas Tercapai!',
+                            title: 'Akses Ditolak / Gagal!',
                             text: "{{ session('error') }}",
                             confirmButtonColor: '#d33'
                         });
@@ -60,7 +60,6 @@
                                 </small>
                             </div>
                             <div class="col-md-3">
-                                {{-- Label transparan untuk penyeimbang tinggi label di kolom kiri --}}
                                 <label class="form-label mb-1 d-none d-md-block">&nbsp;</label>
                                 <button type="submit" class="btn btn-warning btn-lg w-100 fw-bold">
                                     💾 Simpan Konfigurasi
@@ -76,16 +75,28 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title font-weight-bold mb-0">🎱 Daftar Status Meja Biliar</h3>
 
-                    {{-- 🔴 TOMBOL TRIGGER MODAL TAMBAH MEJA --}}
                     @php
                         $maxChannels = (int) env('MAX_RELAY_CHANNELS', 16);
                         $isMaxReached = $tables->count() >= $maxChannels;
                     @endphp
 
-                    <button type="button" class="btn btn-primary fw-bold"
-                        onclick="handleTambahMejaClick({{ $isMaxReached ? 'true' : 'false' }}, {{ $tables->count() }}, {{ $maxChannels }})">
-                        ➕ Tambah Meja Baru
-                    </button>
+                    {{-- 🔴 TOMBOL SAMPAN (MODAL POPUP) & TAMBAH MEJA --}}
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-danger fw-bold position-relative"
+                            data-bs-toggle="modal" data-bs-target="#modalTrashMeja">
+                            🗑️ Sampah
+                            @if($trashedTables->count() > 0)
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    {{ $trashedTables->count() }}
+                                </span>
+                            @endif
+                        </button>
+
+                        <button type="button" class="btn btn-primary fw-bold"
+                            onclick="handleTambahMejaClick({{ $isMaxReached ? 'true' : 'false' }}, {{ $tables->count() }}, {{ $maxChannels }})">
+                            ➕ Tambah Meja Baru
+                        </button>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-vcenter card-table text-nowrap">
@@ -123,16 +134,22 @@
                                         @elseif($table->status == 'maintenance')
                                             <span class="text-danger">Meja dikunci. Kasir tidak bisa membuka billing.</span>
                                         @elseif($table->status == 'nearly')
-                                            <span class="text-warning fw-bold">⚠️ Waktu billing hampir habis. Lampu sudah
-                                                berkedip 5x.</span>
+                                            <span class="text-warning fw-bold">⚠️ Waktu billing hampir habis. Lampu sudah berkedip 5x.</span>
                                         @else
                                             <span class="text-muted">Sedang digunakan transaksi aktif.</span>
                                         @endif
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-list flex-nowrap justify-content-center">
-                                            {{-- TOMBOL SET MAINTENANCE --}}
                                             @if (in_array($table->status, ['available', 'maintenance']))
+                                                {{-- ✏️ TOMBOL EDIT MEJA --}}
+                                                <button type="button" class="btn btn-sm btn-primary"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalEditMeja{{ $table->id }}">
+                                                    ✏️ Edit
+                                                </button>
+
+                                                {{-- TOMBOL SET MAINTENANCE --}}
                                                 <form action="{{ route('master.tables.maintenance', $table->id) }}"
                                                     method="POST" class="d-inline">
                                                     @csrf
@@ -161,13 +178,50 @@
                                                 </form>
                                             @else
                                                 <button class="btn btn-sm btn-secondary" disabled
-                                                    title="Meja yang sedang terisi tidak bisa dihapus">
+                                                    title="Meja yang sedang terisi tidak bisa dihapus atau diedit">
                                                     🔒 Meja Aktif
                                                 </button>
                                             @endif
                                         </div>
                                     </td>
                                 </tr>
+
+                                {{-- 🪟 MODAL POPUP EDIT MEJA --}}
+                                @if (in_array($table->status, ['available', 'maintenance']))
+                                    <div class="modal fade" id="modalEditMeja{{ $table->id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-primary text-white">
+                                                    <h5 class="modal-title fw-bold">✏️ Edit Meja Biliar #{{ $table->table_number }}</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form action="{{ route('master.tables.update', $table->id) }}" method="POST">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <div class="modal-body text-start">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Nomor Meja</label>
+                                                            <input type="number" name="table_number" class="form-control"
+                                                                value="{{ $table->table_number }}" min="1" required>
+                                                            <small class="text-muted">Nomor ini yang akan tampil di aplikasi kasir.</small>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Relay Channel (Hardware)</label>
+                                                            <input type="number" name="relay_channel" class="form-control"
+                                                                value="{{ $table->relay_channel }}" min="1"
+                                                                max="{{ env('MAX_RELAY_CHANNELS', 16) }}" required>
+                                                            <small class="text-muted">Nomor pin relay pada modul hardware Arduino/Relay Board (Maks: {{ env('MAX_RELAY_CHANNELS', 16) }}).</small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">Batal</button>
+                                                        <button type="submit" class="btn btn-primary fw-bold ms-auto">💾 Simpan Perubahan</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
                             @empty
                                 <tr>
                                     <td colspan="5" class="text-center text-muted py-4">Belum ada meja yang terdaftar.
@@ -218,10 +272,64 @@
         </div>
     </div>
 
+    {{-- 🪟 MODAL POPUP SAMPAH / RECYCLE BIN --}}
+    <div class="modal fade" id="modalTrashMeja" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold">🗑️ Recycle Bin (Daftar Meja Terhapus)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-vcenter card-table text-nowrap mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nama Meja</th>
+                                    <th>Relay Channel</th>
+                                    <th>Waktu Dihapus</th>
+                                    <th class="w-1 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($trashedTables as $trash)
+                                    <tr>
+                                        <td class="text-muted fw-bold">#{{ $trash->id }}</td>
+                                        <td class="fw-bold text-dark">{{ $trash->name ?? 'Meja ' . $trash->table_number }}</td>
+                                        <td><span class="badge bg-outline-secondary">Channel {{ $trash->relay_channel }}</span></td>
+                                        <td class="text-muted small">{{ $trash->deleted_at->format('d M Y H:i') }}</td>
+                                        <td class="text-center">
+                                            <form action="{{ route('master.tables.restore', $trash->id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-success fw-bold"
+                                                    onclick="return confirm('Pulihkan meja ini kembali ke sistem aktif?')">
+                                                    ♻️ Restore
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">
+                                            Tidak ada data meja di Recycle Bin.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- 📜 SCRIPT SWEETALERT DAN MODAL HANDLER --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        // Handler Klik Tombol Tambah Meja
         function handleTambahMejaClick(isMaxReached, currentTotal, maxLimit) {
             if (isMaxReached) {
                 Swal.fire({
@@ -232,13 +340,11 @@
                     confirmButtonText: 'Tutup'
                 });
             } else {
-                // Tampilkan Modal Bootstrap
                 var myModal = new bootstrap.Modal(document.getElementById('modalTambahMeja'));
                 myModal.show();
             }
         }
 
-        // SweetAlert Konfirmasi Hapus Meja
         function confirmHapusMeja(id, tableNumber) {
             Swal.fire({
                 title: `Hapus Meja ${tableNumber}?`,

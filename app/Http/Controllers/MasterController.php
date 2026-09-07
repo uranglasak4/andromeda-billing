@@ -273,14 +273,73 @@ class MasterController extends Controller
     public function tableIndex()
     {
         $tables = PoolTable::orderBy('table_number', 'asc')->get();
+        // 🗑️ Tambahkan baris ini untuk mengambil data meja yang di-soft delete
+        $trashedTables = PoolTable::onlyTrashed()->orderBy('table_number', 'asc')->get();
         $nearlyWarningMinutes = Setting::where('key', 'nearly_warning_minutes')->value('value') ?? 20;
-        return view('master.tables', compact('tables', 'nearlyWarningMinutes'));
+
+        return view('master.tables', compact('tables', 'trashedTables', 'nearlyWarningMinutes'));
     }
 
     // --- METHOD TAMBAH MEJA BARU (MASTER) ---
+    // --- METHOD TAMBAH MEJA BARU (MASTER) ---
+    // --- METHOD TAMBAH MEJA BARU (MURNI CREATE BARU) ---
     public function storeTable(Request $request)
     {
-        // 1. Validasi Input Form
+        $request->validate([
+            'table_number' => 'required|numeric|min:1',
+            'relay_channel' => 'required|numeric|min:1|max:' . env('MAX_RELAY_CHANNELS', 16),
+        ]);
+
+        // 1. Cek apakah Nomor Meja atau Relay Channel sedang DIPAKAI MEJA AKTIF
+        $activeExist = PoolTable::whereNull('deleted_at')
+            ->where(function ($q) use ($request) {
+                $q->where('table_number', $request->table_number)
+                    ->orWhere('relay_channel', $request->relay_channel);
+            })
+            ->exists();
+
+        if ($activeExist) {
+            return redirect()->back()->with('error', 'Gagal! Nomor Meja atau Relay Channel sudah digunakan oleh meja aktif lain.');
+        }
+
+        // 2. Cek apakah Nomor Meja atau Relay Channel ADA DI RECYCLE BIN (SAMPAH)
+        $trashedExist = PoolTable::onlyTrashed()
+            ->where(function ($q) use ($request) {
+                $q->where('table_number', $request->table_number)
+                    ->orWhere('relay_channel', $request->relay_channel);
+            })
+            ->exists();
+
+        if ($trashedExist) {
+            return redirect()->back()->with('error', 'Gagal! Nomor Meja atau Relay Channel ini ada di Recycle Bin. Silakan Restore data lama dari Recycle Bin.');
+        }
+
+        // 3. Jika benar-benar bersih, buat baris data baru di database
+        try {
+            PoolTable::create([
+                'table_number' => $request->table_number,
+                'relay_channel' => $request->relay_channel,
+                'status' => 'available',
+                'is_active' => true,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Terjadi kesalahan pada database: ' . $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', "Meja {$request->table_number} berhasil ditambahkan!");
+    }
+
+    // --- METHOD EDIT/UPDATE MEJA (MASTER) ---
+    public function updateTable(Request $request, $id)
+    {
+        $table = PoolTable::findOrFail($id);
+
+        // 1. Cek proteksi jika meja sedang aktif digunakan
+        if (in_array($table->status, ['playing', 'personal', 'nearly'])) {
+            return redirect()->back()->with('error', 'Gagal memperbarui! Meja ini sedang digunakan dalam transaksi aktif.');
+        }
+
+        // 2. Validasi Input Form
         $request->validate([
             'table_number' => 'required|numeric|min:1',
             'relay_channel' => 'required|numeric|min:1|max:' . env('MAX_RELAY_CHANNELS', 16),
@@ -289,41 +348,74 @@ class MasterController extends Controller
             'relay_channel.max' => 'Relay channel melebihi kapasitas hardware (' . env('MAX_RELAY_CHANNELS', 16) . ')!',
         ]);
 
-        // 2. Cek apakah nomor/relay sedang DIPAKAI OLEH MEJA AKTIF (Belum Soft Delete)
-        $activeTableExist = PoolTable::where('table_number', $request->table_number)
-            ->orWhere('relay_channel', $request->relay_channel)
+        // 3. SOLUSI 1: Cek apakah nomor/relay digunakan oleh MEJA AKTIF LAIN
+        $tableExist = PoolTable::where('id', '!=', $id)
+            ->whereNull('deleted_at')
+            ->where(function ($query) use ($request) {
+                $query->where('table_number', $request->table_number)
+                    ->orWhere('relay_channel', $request->relay_channel);
+            })
             ->exists();
 
-        if ($activeTableExist) {
+        if ($tableExist) {
             return redirect()->back()->with('error', 'Nomor meja atau Relay Channel sudah digunakan oleh meja aktif lain!');
         }
 
-        // 3 & 4. Restore data jika ada di sampah (Soft Delete), atau buat baru jika tidak ada
-        $trashedTable = PoolTable::onlyTrashed()
-            ->where('table_number', $request->table_number)
-            ->orWhere('relay_channel', $request->relay_channel)
-            ->first();
+        // 4. PENAMBAHAN BARU: Cek apakah nomor/relay terikat pada MEJA DI RECYCLE BIN (TRASH)
+        $trashedExist = PoolTable::onlyTrashed()
+            ->where(function ($query) use ($request) {
+                $query->where('table_number', $request->table_number)
+                    ->orWhere('relay_channel', $request->relay_channel);
+            })
+            ->exists();
 
-        if ($trashedTable) {
-            // Pulihkan meja yang terhapus dan perbarui datanya
-            $trashedTable->restore();
-            $trashedTable->update([
-                'table_number' => $request->table_number,
-                'relay_channel' => $request->relay_channel,
-                'status' => 'available',
-                'is_active' => true,
-            ]);
-        } else {
-            // Simpan Meja Baru murni
-            PoolTable::create([
-                'table_number' => $request->table_number,
-                'relay_channel' => $request->relay_channel,
-                'status' => 'available',
-                'is_active' => true,
-            ]);
+        if ($trashedExist) {
+            return redirect()->back()->with('error', 'Gagal Edit! Nomor Meja atau Relay Channel tersebut ada di Recycle Bin. Silakan gunakan nomor lain yang belum terdaftar atau Restore meja dari Recycle Bin.');
         }
 
-        return redirect()->back()->with('success', "Meja {$request->table_number} berhasil ditambahkan!");
+        // 5. Update Data Meja (dengan try-catch untuk jaring pengaman terakhir dari Unique Constraint Database)
+        try {
+            $table->update([
+                'table_number' => $request->table_number,
+                'relay_channel' => $request->relay_channel,
+            ]);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            return redirect()->back()->with('error', 'Gagal Update! Relay Channel atau Nomor Meja ini mengalami duplikasi pada database.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', "Data Meja {$request->table_number} berhasil diperbarui!");
+    }
+
+    // --- METHOD RECYCLE BIN / SAMPAN MEJA ---
+    public function tableTrash()
+    {
+        $trashedTables = PoolTable::onlyTrashed()->orderBy('table_number', 'asc')->get();
+        return view('master.tables_trash', compact('trashedTables'));
+    }
+
+    // --- METHOD RESTORE MEJA DARI RECYCLE BIN ---
+    public function restoreTable($id)
+    {
+        $table = PoolTable::onlyTrashed()->findOrFail($id);
+
+        // Cek apakah nomor/relay meja sampah ini sedang dipakai meja AKTIF
+        $activeExist = PoolTable::whereNull('deleted_at')
+            ->where(function ($q) use ($table) {
+                $q->where('table_number', $table->table_number)
+                    ->orWhere('relay_channel', $table->relay_channel);
+            })
+            ->exists();
+
+        if ($activeExist) {
+            return redirect()->back()->with('error', "Gagal Restore! Nomor Meja {$table->table_number} atau Relay Channel {$table->relay_channel} sedang digunakan oleh meja aktif.");
+        }
+
+        $table->restore();
+        $table->update(['status' => 'available', 'is_active' => true]);
+
+        return redirect()->back()->with('success', "Meja {$table->table_number} berhasil dipulihkan!");
     }
 
     // --- METHOD HAPUS MEJA (MASTER) ---
