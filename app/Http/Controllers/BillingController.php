@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\PoolTable;
 use App\Models\Transaction;
 use App\Models\WaitingList;
+use App\Models\OrderFnb;
 use App\Models\Package;
 use Carbon\Carbon;
 

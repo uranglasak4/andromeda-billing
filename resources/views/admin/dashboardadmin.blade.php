@@ -1291,7 +1291,7 @@
         window.addEventListener('load', function() {
             @if (session('print_transaction_id'))
                 // Otomatis buka tab struk baru
-                window.open("{{ route('billing.receipt', session('print_transaction_id')) }}", "_blank");
+                window.open("{{ route('admin.receipt', session('print_transaction_id')) }}", "_blank");
             @endif
         });
 

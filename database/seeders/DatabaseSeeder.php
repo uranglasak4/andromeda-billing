@@ -123,6 +123,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             FnbSeeder::class,
             PackageSeeder::class,
+            ReportDummySeeder::class,
         ]);
 
         \App\Models\Setting::updateOrCreate(
