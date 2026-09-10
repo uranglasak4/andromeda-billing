@@ -576,12 +576,12 @@ class BillingController extends Controller
         return \App\Models\PricingRule::first();
     }
 
-    public function printReceipt($transactionId)
+    public function printReceiptAdmin($transactionId)
     {
         $transaction = Transaction::with(['poolTable', 'orderFnbs.fnbProduct', 'creator', 'closer'])
             ->findOrFail($transactionId);
 
-        return view('admin.receipt', compact('transaction'));
+        return view('admin.receiptadmin', compact('transaction'));
     }
 
     // 1. Simpan Billing sebagai Tagihan Pending (Lampu Meja Mati, Status = 'unpaid')
@@ -672,6 +672,14 @@ class BillingController extends Controller
         return redirect()->route('admin.dashboard')
             ->with('success', 'Tagihan berhasil dilunasi!')
             ->with('print_transaction_id', $transaction->id);
+    }
+
+    public function printReceiptMaster($transactionId)
+    {
+        $transaction = Transaction::with(['poolTable', 'orderFnbs.fnbProduct', 'creator', 'closer'])
+            ->findOrFail($transactionId);
+
+        return view('master.receiptmaster', compact('transaction'));
     }
 
 }

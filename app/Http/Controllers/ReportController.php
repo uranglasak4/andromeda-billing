@@ -13,7 +13,7 @@ class ReportController extends Controller
     {
         // 1. Ambil Tanggal Default (Hari Ini)
         $startDate = $request->get('start_date', Carbon::today()->format('Y-m-d'));
-        $endDate   = $request->get('end_date', Carbon::today()->format('Y-m-d'));
+        $endDate = $request->get('end_date', Carbon::today()->format('Y-m-d'));
 
         // 2. Logika Default Kasir
         if ($request->has('cashier_id')) {
@@ -54,7 +54,7 @@ class ReportController extends Controller
             // Konversi "0003" menjadi angka 3 untuk cari langsung ke ID
             $searchId = ltrim($search, '0');
 
-            $query->where(function($q) use ($search, $searchId) {
+            $query->where(function ($q) use ($search, $searchId) {
                 // A. Cari berdasarkan angka ID murni
                 if (!empty($searchId) && is_numeric($searchId)) {
                     $q->orWhere('id', $searchId);
@@ -63,13 +63,13 @@ class ReportController extends Controller
                 // B. Cari ID 4 digit (misal ID 3 dibaca '0003')
                 $q->orWhereRaw("LPAD(id, 4, '0') LIKE ?", ["%{$search}%"])
 
-                  // C. Cari berdasarkan Nama Customer
-                  ->orWhere('customer_name', 'like', "%{$search}%")
+                    // C. Cari berdasarkan Nama Customer
+                    ->orWhere('customer_name', 'like', "%{$search}%")
 
-                  // D. Cari berdasarkan Nomor Meja via Relasi poolTable
-                  ->orWhereHas('poolTable', function($tableQuery) use ($search) {
-                      $tableQuery->where('table_number', 'like', "%{$search}%");
-                  });
+                    // D. Cari berdasarkan Nomor Meja via Relasi poolTable
+                    ->orWhereHas('poolTable', function ($tableQuery) use ($search) {
+                        $tableQuery->where('table_number', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -77,13 +77,13 @@ class ReportController extends Controller
         $cashiers = User::where('role', 'admin')->orderBy('name', 'asc')->get();
 
         // 8. Hitung Total Ringkasan
-        $totalOmset        = (clone $query)->sum('grand_total');
-        $totalCash         = (clone $query)->where('payment_method', 'cash')->sum('grand_total');
-        $totalNonCash      = (clone $query)->where('payment_method', '!=', 'cash')->sum('grand_total');
+        $totalOmset = (clone $query)->sum('grand_total');
+        $totalCash = (clone $query)->where('payment_method', 'cash')->sum('grand_total');
+        $totalNonCash = (clone $query)->where('payment_method', '!=', 'cash')->sum('grand_total');
         $totalTransactions = (clone $query)->count();
 
-        $totalBillPrice    = (clone $query)->sum('bill_price');
-        $totalFnbPrice     = (clone $query)->sum('fnb_price');
+        $totalBillPrice = (clone $query)->sum('bill_price');
+        $totalFnbPrice = (clone $query)->sum('fnb_price');
 
         // 9. Urutkan & Paginate 15 Data Per Halaman
         $transactions = $query->orderBy('id', 'desc')->paginate(15)->withQueryString();
@@ -107,5 +107,104 @@ class ReportController extends Controller
             'cashierId',
             'periodText'
         ));
+    }
+
+    public function masterIndex(Request $request)
+    {
+        // 1. Ambil Tanggal Default (Hari Ini)
+        $startDate = $request->get('start_date', Carbon::today()->format('Y-m-d'));
+        $endDate = $request->get('end_date', Carbon::today()->format('Y-m-d'));
+
+        // 2. Logika Kasir Khusus Master: Default 'all' (Semua Kasir)
+        if ($request->has('cashier_id')) {
+            $cashierId = $request->get('cashier_id') === 'all' ? null : $request->get('cashier_id');
+        } else {
+            $cashierId = null; // Master melihat semua kasir secara default
+        }
+
+        // 3. Base Query Transaksi Selesai
+        $query = Transaction::where('status', 'finished')
+            ->whereBetween('end_time', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay()
+            ]);
+
+        // 4. Filter Kasir Close (jika dipilih)
+        if (!empty($cashierId)) {
+            $query->where('closed_by', $cashierId);
+        }
+
+        // 5. Filter Kategori Transaksi
+        if ($request->filled('type') && $request->get('type') !== 'all') {
+            $type = $request->get('type');
+            if ($type === 'blm') {
+                $query->where('bill_price', '>', 0)->where('fnb_price', 0);
+            } elseif ($type === 'fnb') {
+                $query->where('bill_price', 0)->where('fnb_price', '>', 0);
+            } elseif ($type === 'billing_fnb') {
+                $query->where('bill_price', '>', 0)->where('fnb_price', '>', 0);
+            }
+        }
+
+        // 6. Logika Pencarian
+        if ($request->filled('search')) {
+            $search = trim($request->get('search'));
+            $searchId = ltrim($search, '0');
+
+            $query->where(function ($q) use ($search, $searchId) {
+                if (!empty($searchId) && is_numeric($searchId)) {
+                    $q->orWhere('id', $searchId);
+                }
+                $q->orWhereRaw("LPAD(id, 4, '0') LIKE ?", ["%{$search}%"])
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhereHas('poolTable', function ($tableQuery) use ($search) {
+                        $tableQuery->where('table_number', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        // 7. Ambil Daftar Kasir
+        $cashiers = User::where('role', 'admin')->orderBy('name', 'asc')->get();
+
+        // 8. Hitung Total Ringkasan
+        $totalOmset = (clone $query)->sum('grand_total');
+        $totalCash = (clone $query)->where('payment_method', 'cash')->sum('grand_total');
+        $totalNonCash = (clone $query)->where('payment_method', '!=', 'cash')->sum('grand_total');
+        $totalTransactions = (clone $query)->count();
+
+        $totalBillPrice = (clone $query)->sum('bill_price');
+        $totalFnbPrice = (clone $query)->sum('fnb_price');
+
+        // 9. Paginate Data
+        $transactions = $query->orderBy('id', 'desc')->paginate(15)->withQueryString();
+
+        // 10. Teks Periode Laporan
+        $periodText = ($startDate === $endDate)
+            ? Carbon::parse($startDate)->format('d/m/Y')
+            : Carbon::parse($startDate)->format('d/m/Y') . ' - ' . Carbon::parse($endDate)->format('d/m/Y');
+
+        return view('master.reportmaster', compact(
+            'transactions',
+            'cashiers',
+            'totalOmset',
+            'totalCash',
+            'totalNonCash',
+            'totalTransactions',
+            'totalBillPrice',
+            'totalFnbPrice',
+            'startDate',
+            'endDate',
+            'cashierId',
+            'periodText'
+        ));
+    }
+
+    // 🟢 METHOD HAPUS TRANSAKSI (KHUSUS ROLE MASTER)
+    public function destroyTransaction($id)
+    {
+        $transaction = Transaction::findOrFail($id);
+        $transaction->delete();
+
+        return redirect()->back()->with('success', 'Transaksi berhasil dihapus dari laporan.');
     }
 }

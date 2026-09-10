@@ -136,8 +136,8 @@
                                         <span class="nav-link-title">FnB</span>
                                     </a>
                                 </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="#">
+                                <li class="nav-item {{ Route::is('master.reportmaster') ? 'active' : '' }}">
+                                    <a class="nav-link" href="{{ route('master.reportmaster') }}">
                                         <span class="nav-link-title">Laporan Keuangan</span>
                                     </a>
                                 </li>

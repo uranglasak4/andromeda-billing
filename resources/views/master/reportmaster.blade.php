@@ -73,7 +73,7 @@
                 </h6>
 
                 <!-- FORM FILTER TANGGAL, KATEGORI, SEARCH, KASIR -->
-                <form action="{{ route('admin.reportadmin') }}" method="GET" class="d-flex align-items-center m-0"
+                <form action="{{ route('master.reportmaster') }}" method="GET" class="d-flex align-items-center m-0"
                     style="gap: 6px;">
 
                     <!-- Dari Tanggal -->
@@ -289,7 +289,7 @@
 
                                     <!-- 15. Aksi -->
                                     <td>
-                                        <a href="{{ route('admin.receipt', $item->id) }}" target="_blank"
+                                        <a href="{{ route('master.receipt', $item->id) }}" target="_blank"
                                             class="btn btn-sm btn-secondary">
                                             🖨️ Struk
                                         </a>

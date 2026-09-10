@@ -56,8 +56,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::post('/transactions/unpaid', [BillingController::class, 'storeUnpaid'])->name('transactions.unpaid');
     Route::post('/transactions/{id}/pay', [BillingController::class, 'payUnpaid'])->name('transactions.pay');
 
-    Route::get('/receipt/{id}', [BillingController::class, 'printReceipt'])->name('billing.receipt');
-
     Route::post('/billing/open/{id}', [BillingController::class, 'openTable'])->name('billing.open');
     Route::post('/billing/move', [BillingController::class, 'moveTable'])->name('billing.move');
     // Route::get('/billing/stop/{id}', [BillingController::class, 'stopBilling'])->name('billing.stop');
@@ -79,6 +77,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/orderfnb/active-orders/{table_id}', [OrderFnbController::class, 'getActiveTableOrders']);
 
     Route::get('/reports', [ReportController::class, 'adminIndex'])->name('admin.reportadmin');
+
+    Route::get('/receipt/{id}', [BillingController::class, 'printReceiptAdmin'])->name('admin.receipt');
+
 });
 
 
@@ -117,8 +118,12 @@ Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () 
 
     Route::get('/waiting-list/setting', [MasterController::class, 'waitingListSetting'])->name('master.wlsetting');
     Route::post('/waiting-list/setting/update', [MasterController::class, 'updateWaitingListSetting'])->name('master.waitinglist.update');
-
     Route::get('/waiting-list', [WaitingListController::class, 'index'])->name('master.waiting-list');
+
+    Route::get('/reports', [ReportController::class, 'masterIndex'])->name('master.reportmaster');
+    Route::delete('/reports/transaction/{id}', [ReportController::class, 'destroyTransaction'])->name('master.reports.destroy');
+
+    Route::get('/receipt/{id}', [BillingController::class, 'printReceiptMaster'])->name('master.receipt');
 });
 
 // Rute Pendaftaran Waiting List Mandiri untuk Customer (Tanpa Login)
