@@ -12,58 +12,72 @@
         @endif
 
         {{-- CARD FORM SETTING: 2 KOLOM SEJAJAR --}}
-        <div class="card shadow border-0 mb-4">
-            <div class="card-header bg-dark text-white py-3">
-                <h3 class="card-title text-white fw-bold mb-0">🛠️ KUSTOMISASI SISTEM</h3>
-            </div>
-            <div class="card-body py-4">
-                <p class="text-muted small mb-4">
-                    Halaman ini khusus untuk Owner (Master) mengatur jalannya regulasi antrean secara dinamis tanpa mengubah
-                    kodingan program.
-                </p>
+        <form action="{{ route('master.waitinglist.update') }}" method="POST">
+            @csrf
+            <div class="card shadow border-0 mb-4">
+                {{-- Header Card --}}
+                <div class="card-header bg-dark text-white py-3">
+                    <h3 class="card-title text-white fw-bold mb-0">🛠️ KUSTOMISASI SISTEM</h3>
+                </div>
 
-                <form action="{{ route('master.waitinglist.update') }}" method="POST">
-                    @csrf
-                    <div class="row g-4 align-items-end">
+                <div class="card-body py-4">
+                    <div class="row g-3 align-items-center">
 
-                        {{-- KOLOM KIRI: Batas Waktu Verifikasi --}}
-                        <div class="col-md-6">
+                        {{-- KOLOM 2: Batas Waktu Verifikasi --}}
+                        <div class="col-md-4">
                             <label class="form-label fw-bold text-dark mb-1">⏱️ Batas Waktu Verifikasi (Menit)</label>
                             <div class="input-group">
                                 <input type="number" name="verification_time" class="form-control form-control-lg fw-bold"
-                                    value="{{ $verificationTime }}" min="1" required>
+                                    value="{{ $verificationTime }}" min="1" required style="height: 48px;">
                                 <span class="input-group-text bg-light fw-bold text-secondary">Menit</span>
                             </div>
                             <small class="form-hint text-muted mt-1 d-block">
-                                Jika pelanggan mendaftar online via website dan tidak melapor ke kasir dalam waktu ini,
-                                namanya otomatis hangus dari antrean.
+                                Batas waktu verifikasi layer 2 ke kasir sebelum antrean hangus.
                             </small>
                         </div>
 
-                        {{-- KOLOM KANAN: Batas Kuota Maksimal --}}
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark mb-1">📊 Batas Kuota Maksimal Antrean Online</label>
+                        {{-- KOLOM 3: Batas Kuota Maksimal --}}
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-dark mb-1">📊 Kuota Maksimal Pendaftaran Online (Website)</label>
                             <div class="input-group">
                                 <input type="number" name="max_online_queue" class="form-control form-control-lg fw-bold"
-                                    value="{{ $maxOnlineQueue }}" min="1" required>
+                                    value="{{ $maxOnlineQueue }}" min="1" required style="height: 48px;">
                                 <span class="input-group-text bg-light fw-bold text-secondary">Customer</span>
                             </div>
                             <small class="form-hint text-muted mt-1 d-block">
-                                Batas jumlah maksimal pengantre online yang terdaftar bersamaan di website monitor. Jika
-                                penuh, tombol daftar mandiri di website otomatis terkunci.
+                                Batas jumlah maksimal pengantre online bersamaan.
                             </small>
                         </div>
 
+                        {{-- KOLOM 1: Status Pendaftaran Online --}}
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-dark mb-1">🌐 Pendaftaran Online (Website)</label>
+                            <div class="p-2 bg-light rounded border d-flex align-items-center justify-content-between"
+                                style="height: 48px;">
+                                <span class="small font-weight-bold text-secondary">Status Sistem:</span>
+                                <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
+                                    <input class="form-check-input ms-0" type="checkbox" role="switch" id="toggleRegistWl"
+                                        name="regist_wl_website" value="1"
+                                        style="width: 2.5em; height: 1.25em; cursor: pointer;"
+                                        {{ ($registWlWebsite ?? '1') == '1' ? 'checked' : '' }}>
+                                    <label class="form-check-label ms-2 fw-bold text-warning" id="toggleLabel"
+                                        for="toggleRegistWl" style="min-width: 30px;">
+                                        {{ ($registWlWebsite ?? '1') == '1' ? 'ON' : 'OFF' }}
+                                    </label>
+                                </div>
+                            </div>
+                            <small class="form-hint text-muted mt-1 d-block">
+                                Aktifkan pendaftaran mandiri via website.
+                            </small>
+                        </div>
                     </div>
-
-                    <hr class="my-4">
-
+                    <hr class="my-3">
                     <button type="submit" class="btn btn-primary w-100 py-2 fw-bold" style="font-size: 15px;">
                         💾 SIMPAN KONFIGURASI BARU
                     </button>
-                </form>
+                </div>
             </div>
-        </div>
+        </form>
 
         {{-- LIST ANTREAN DENGAN TAB FILTER (READ ONLY UNTUK MASTER) --}}
         <div class="row">
@@ -101,8 +115,8 @@
                                     role="tab">💨 Expired / Gagal Verifikasi L2</a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a href="#tab-failed" class="nav-link fw-bold py-3 px-3 text-secondary" data-bs-toggle="tab"
-                                    role="tab">❌ Gagal Verifikasi L1</a>
+                                <a href="#tab-failed" class="nav-link fw-bold py-3 px-3 text-secondary"
+                                    data-bs-toggle="tab" role="tab">❌ Gagal Verifikasi L1</a>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <a href="#tab-done" class="nav-link fw-bold py-3 px-3 text-success" data-bs-toggle="tab"
@@ -149,6 +163,19 @@
                 </div>
             </div>
         </div>
-
     </div>
+    <script>
+        document.getElementById('toggleRegistWl')?.addEventListener('change', function() {
+            const label = document.getElementById('toggleLabel');
+            if (this.checked) {
+                label.textContent = 'ON';
+                label.classList.remove('text-secondary');
+                label.classList.add('text-warning');
+            } else {
+                label.textContent = 'OFF';
+                label.classList.remove('text-warning');
+                label.classList.add('text-secondary');
+            }
+        });
+    </script>
 @endsection

@@ -176,6 +176,13 @@ class WaitingListController extends Controller
             // -------------------------------------------------------
             // [DAFTAR ONLINE WEB] - Masuk Lapis 1 (Pending)
             // -------------------------------------------------------
+
+            // 🟢 PROTEKSI TOGGLE ONLINE WEBSITE (Fitur Baru)
+            $isRegistOpen = Setting::where('key', 'regist_wl_website')->value('value') ?? '1';
+            if ($isRegistOpen == '0') {
+                return redirect()->back()->with('error', 'Pendaftaran antrean online melalui website sedang ditutup oleh pengelola.');
+            }
+
             $request->validate([
                 'nama_pelanggan' => 'required|string|max:25',
                 'nomor_wa' => 'required|numeric',

@@ -122,6 +122,7 @@ Route::middleware(['auth', 'role:master'])->prefix('master')->group(function () 
 
     Route::get('/reports', [ReportController::class, 'masterIndex'])->name('master.reportmaster');
     Route::delete('/reports/transaction/{id}', [ReportController::class, 'destroyTransaction'])->name('master.reports.destroy');
+    Route::get('/reports/export', [ReportController::class, 'exportReport'])->name('master.reports.export');
 
     Route::get('/receipt/{id}', [BillingController::class, 'printReceiptMaster'])->name('master.receipt');
 });

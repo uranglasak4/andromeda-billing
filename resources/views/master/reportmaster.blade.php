@@ -126,6 +126,10 @@
                     <button type="submit" class="btn btn-sm btn-primary px-3">
                         🔍 Filter
                     </button>
+                    <button type="button" class="btn btn-sm btn-success px-3 ml-2" data-bs-toggle="modal"
+                        data-bs-target="#exportModal">
+                        📥 Export To
+                    </button>
                 </form>
             </div>
 
@@ -293,6 +297,15 @@
                                             class="btn btn-sm btn-secondary">
                                             🖨️ Struk
                                         </a>
+                                        <form action="{{ route('master.reports.destroy', $item->id) }}" method="POST"
+                                            onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi #{{ $item->id }} ini? Data omset akan berkurang secara permanen.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger p-1 px-2"
+                                                title="Hapus Transaksi">
+                                                🗑️ Drop
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             @empty
@@ -322,4 +335,90 @@
             </div>
         </div>
     </div>
+
+    <!-- MODAL POP-UP EXPORT TO -->
+    <div class="modal fade" id="exportModal" tabindex="-1" role="dialog" aria-labelledby="exportModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form action="{{ route('master.reports.export') }}" method="GET" target="_blank">
+                    <div class="modal-header bg-primary text-white py-2">
+                        <h5 class="modal-title font-weight-bold" id="exportModalLabel" style="font-size: 1rem;">
+                            📥 Export Laporan Keuangan
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <!-- 1. PILIH FORMAT FILE -->
+                        <div class="form-group mb-3">
+                            <label class="font-weight-bold text-dark">Format File Output:</label>
+                            <div class="d-flex" style="gap: 20px;">
+                                <div class="custom-control custom-radio">
+                                    <input type="radio" id="formatExcel" name="format" value="excel"
+                                        class="custom-control-input" checked>
+                                    <label class="custom-control-label text-success font-weight-bold" for="formatExcel">
+                                        📊 Excel (.xlsx)
+                                    </label>
+                                </div>
+                                <div class="custom-control custom-radio">
+                                    <input type="radio" id="formatPdf" name="format" value="pdf"
+                                        class="custom-control-input">
+                                    <label class="custom-control-label text-danger font-weight-bold" for="formatPdf">
+                                        📄 PDF Document (.pdf)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-3">
+
+                        <!-- 2. PILIH RENTANG WAKTU PRESET -->
+                        <div class="form-group mb-2">
+                            <label class="font-weight-bold text-dark">Pilih Rentang Waktu Laporan:</label>
+                            <select name="time_range" id="time_range" class="custom-select custom-select-sm"
+                                onchange="toggleCustomDate(this.value)">
+                                <option value="today">Hari Ini</option>
+                                <option value="this_week">1 Minggu Ini (Senin - Minggu Ini)</option>
+                                <option value="last_7_days">7 Hari Terakhir</option>
+                                <option value="this_month" selected>1 Bulan Ini (Bulan Berjalan)</option>
+                                <option value="last_month">1 Bulan Sebelumnya</option>
+                                <option value="custom">Rentang Tanggal Custom...</option>
+                            </select>
+                        </div>
+
+                        <!-- INPUT TANGGAL CUSTOM -->
+                        <div id="custom_date_container" class="row mt-2" style="display: none;">
+                            <div class="col-6">
+                                <label class="small text-muted mb-1">Dari Tanggal:</label>
+                                <input type="date" name="export_start_date" class="form-control form-control-sm"
+                                    value="{{ $startDate }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="small text-muted mb-1">Sampai Tanggal:</label>
+                                <input type="date" name="export_end_date" class="form-control form-control-sm"
+                                    value="{{ $endDate }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-sm btn-success px-4">Download Laporan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleCustomDate(val) {
+            const container = document.getElementById('custom_date_container');
+            if (val === 'custom') {
+                container.style.display = 'flex';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+    </script>
 @endsection

@@ -168,6 +168,9 @@
     </div>
 
     <script>
+        // Ambil status kustomisasi sistem pendaftaran dari Database (1 = ON, 0 = OFF)
+        let isRegistActive = "{{ \App\Models\Setting::where('key', 'regist_wl_website')->value('value') ?? '1' }}";
+
         // Live Clock Engine
         setInterval(() => {
             const now = new Date();
@@ -182,6 +185,11 @@
             fetch("{{ route('api.tables.status') }}")
                 .then(response => response.json())
                 .then(data => {
+                    // Update status registrasi secara dinamis jika backend API mengirimkannya
+                    if (data.regist_wl_website !== undefined) {
+                        isRegistActive = String(data.regist_wl_website);
+                    }
+
                     const tables = data.tables || [];
                     const waitingList = data.waiting_list_monitor || [];
 
@@ -330,6 +338,19 @@
         }
 
         function checkTableAvailability() {
+            // 🛑 CEK TERLEBIH DAHULU: Jika Status Sistem OFF (0), langsung munculkan Pop Up Alert
+            if (String(isRegistActive) === '0') {
+                Swal.fire({
+                    title: 'Pendaftaran Nonaktif! 🚫',
+                    text: 'Pendaftaran waiting list via website dinonaktifkan sementara waktu sampai waktu yang ditentukan. Terima kasih!',
+                    icon: 'warning',
+                    confirmButtonColor: '#3085d6',
+                    confirmButtonText: 'Oke, Paham'
+                });
+                return; // Menghentikan eksekusi logika pendaftaran di bawahnya
+            }
+
+            // 🟢 JIKA STATUS ON (1): Jalankan logika bawaan milikmu tanpa ada perubahan
             if (hasAvailableTable) {
                 Swal.fire({
                     title: 'Meja Masih Tersedia! 🎱',
@@ -352,7 +373,6 @@
                 myModal.show();
             }
         }
-
 
         fetchLiveMonitorData();
         setInterval(fetchLiveMonitorData, 1000);

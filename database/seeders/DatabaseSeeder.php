@@ -138,5 +138,9 @@ class DatabaseSeeder extends Seeder
             ['key' => 'nearly_warning_minutes'],
             ['value' => 20]
         );
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'regist_wl_website'],
+            ['value' => 1] // 1 = ON, 0 = OFF
+        );
     }
 }

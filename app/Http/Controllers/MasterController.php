@@ -475,6 +475,9 @@ class MasterController extends Controller
         $verificationTime = Setting::where('key', 'verification_time')->value('value') ?? 15;
         $maxOnlineQueue = Setting::where('key', 'max_online_queue')->value('value') ?? 10;
 
+        // 🟢 AMBIL STATUS REGISTRASI WEBSITE (Default: 1 / ON)
+        $registWlWebsite = Setting::where('key', 'regist_wl_website')->value('value') ?? '1';
+
         // Ambil Seluruh Antrean Hari Ini
         $allWaitingLists = \App\Models\WaitingList::whereDate('created_at', \Carbon\Carbon::today())
             ->orderBy('created_at', 'asc')
@@ -516,6 +519,7 @@ class MasterController extends Controller
         return view('master.wlsetting', compact(
             'verificationTime',
             'maxOnlineQueue',
+            'registWlWebsite', // 🟢 PASSING VARIABLE KE VIEW
             'waitingLists',
             'tabOnsite',
             'tabOnlineVerified',
@@ -534,6 +538,10 @@ class MasterController extends Controller
             'verification_time' => 'required|integer|min:1',
             'max_online_queue' => 'required|integer|min:1',
         ]);
+
+        // 🟢 UPDATE / SIMPAN TOGGLE REGISTRASI WEBSITE (1 = ON, 0 = OFF)
+        $registWlStatus = $request->has('regist_wl_website') ? '1' : '0';
+        Setting::updateOrCreate(['key' => 'regist_wl_website'], ['value' => $registWlStatus]);
 
         // Update atau Buat jika key belum ada di tabel settings
         Setting::updateOrCreate(['key' => 'verification_time'], ['value' => $request->verification_time]);

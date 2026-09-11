@@ -6,6 +6,9 @@ use App\Models\Transaction;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Exports\ReportsExport;
 
 class ReportController extends Controller
 {
@@ -206,5 +209,63 @@ class ReportController extends Controller
         $transaction->delete();
 
         return redirect()->back()->with('success', 'Transaksi berhasil dihapus dari laporan.');
+    }
+
+    // 🟢 METHOD BARU: EXPORT LAPORAN (.XLSX & .PDF)
+    public function exportReport(Request $request)
+    {
+        $format = $request->input('format', 'excel');
+        $timeRange = $request->input('time_range', 'this_month');
+
+        $now = Carbon::now();
+
+        // Logika penentuan rentang tanggal berdasarkan pilihan preset
+        switch ($timeRange) {
+            case 'today':
+                $startDate = $now->copy()->startOfDay();
+                $endDate = $now->copy()->endOfDay();
+                break;
+            case 'this_week':
+                $startDate = $now->copy()->startOfWeek();
+                $endDate = $now->copy()->endOfWeek();
+                break;
+            case 'last_7_days':
+                $startDate = $now->copy()->subDays(6)->startOfDay();
+                $endDate = $now->copy()->endOfDay();
+                break;
+            case 'last_month':
+                $startDate = $now->copy()->subMonth()->startOfMonth();
+                $endDate = $now->copy()->subMonth()->endOfMonth();
+                break;
+            case 'custom':
+                $startDate = Carbon::parse($request->input('export_start_date'))->startOfDay();
+                $endDate = Carbon::parse($request->input('export_end_date'))->endOfDay();
+                break;
+            case 'this_month':
+            default:
+                $startDate = $now->copy()->startOfMonth();
+                $endDate = $now->copy()->endOfMonth();
+                break;
+        }
+
+        // Query Ambil Data Transaksi Selesai
+        $transactions = Transaction::with(['poolTable', 'creator', 'closer'])
+            ->where('status', 'finished')
+            ->whereBetween('end_time', [$startDate, $endDate])
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $filename = 'Laporan_Keuangan_' . $startDate->format('dMy') . '_sd_' . $endDate->format('dMy');
+
+        if ($format === 'excel') {
+            // Ekspor Excel murni (.xlsx) menggunakan Laravel Excel
+            return Excel::download(new ReportsExport($transactions), $filename . '.xlsx');
+
+        } else {
+            // Ekspor PDF menggunakan DomPDF
+            $pdf = Pdf::loadView('master.report_pdf', compact('transactions', 'startDate', 'endDate'));
+            $pdf->setPaper('a4', 'landscape');
+            return $pdf->stream($filename . '.pdf');
+        }
     }
 }

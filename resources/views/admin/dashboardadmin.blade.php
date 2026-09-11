@@ -124,7 +124,7 @@
                                                                     {{ number_format($unpaid->grand_total, 0, ',', '.') }}
                                                                 </td>
                                                                 <td class="text-center text-nowrap">
-                                                                    <a href="{{ route('billing.receipt', $unpaid->id) }}"
+                                                                    <a href="{{ route('admin.receipt', $unpaid->id) }}"
                                                                         target="_blank"
                                                                         class="btn btn-icon btn-sm btn-ghost-secondary me-1"
                                                                         title="Cetak Struk">
