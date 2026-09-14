@@ -139,25 +139,41 @@ class ReportDummySeeder extends Seeder
 
     /**
      * Generate FnB order items
+     * ID dan Harga disesuaikan secara presisi dengan data di fnb_products (andromeda.sql)
      * Return: ['rows' => [...], 'total' => int]
      */
     private function randomFnbItems(int $txId, string $custName, Carbon $ts): array
     {
         $menu = [
-            ['id'=>1,  'price'=>25000], // Red Ladies
-            ['id'=>2,  'price'=>25000], // Americano
-            ['id'=>5,  'price'=>23000], // Caramel Latte
-            ['id'=>12, 'price'=>25000], // Green Tea Latte
-            ['id'=>14, 'price'=>22000], // KSO/KSA
-            ['id'=>22, 'price'=>8000],  // Es Teh
-            ['id'=>24, 'price'=>24000], // Oat Milk
-            ['id'=>28, 'price'=>22000], // Kopi Susu
-            ['id'=>34, 'price'=>28000], // Mie Goreng
-            ['id'=>36, 'price'=>28000], // Roti Bakar
-            ['id'=>38, 'price'=>23000], // Pisang Goreng
-            ['id'=>39, 'price'=>18000], // Cireng
-            ['id'=>40, 'price'=>38000], // Indomie
-            ['id'=>41, 'price'=>29000], // Nasi Goreng
+            ['id' => 1,  'price' => 25000], // Red Ladies
+            ['id' => 2,  'price' => 25000], // Mix Berry
+            ['id' => 4,  'price' => 21000], // Americano
+            ['id' => 5,  'price' => 23000], // Cappucino
+            ['id' => 8,  'price' => 25000], // Butterscotch
+            ['id' => 12, 'price' => 25000], // Tiramisu Latte
+            ['id' => 14, 'price' => 22000], // Kopi Susu Original
+            ['id' => 15, 'price' => 23000], // Kopi Susu Aren
+            ['id' => 19, 'price' => 22000], // Chocolate
+            ['id' => 21, 'price' => 22000], // Matcha
+            ['id' => 23, 'price' => 24000], // Sweet Blueberry
+            ['id' => 24, 'price' => 24000], // Strawberry Milky
+            ['id' => 26, 'price' => 20000], // Lemon Tea
+            ['id' => 27, 'price' => 20000], // Lychee Tea
+            ['id' => 29, 'price' => 5000],  // Vit Mineral 600ml
+            ['id' => 30, 'price' => 8000],  // Teh Botol
+            ['id' => 31, 'price' => 40000], // Glove Premium
+            ['id' => 33, 'price' => 28000], // Nasi Ayam Geprek
+            ['id' => 34, 'price' => 28000], // Nasi Ayam Matah
+            ['id' => 36, 'price' => 28000], // Nasi Ayam Black Pepper
+            ['id' => 37, 'price' => 18000], // Mie Rebus
+            ['id' => 38, 'price' => 23000], // Mie Rebus Creamy
+            ['id' => 39, 'price' => 18000], // Mie Goreng
+            ['id' => 40, 'price' => 38000], // Sampurna Mild *B (16 btg)
+            ['id' => 41, 'price' => 29000], // Sampurna Mild *K (12 btg)
+            ['id' => 42, 'price' => 18000], // French Fries
+            ['id' => 43, 'price' => 18000], // Sausage
+            ['id' => 44, 'price' => 20000], // Fish Roll
+            ['id' => 46, 'price' => 25000], // Mix Platter
         ];
 
         shuffle($menu);
@@ -367,8 +383,6 @@ class ReportDummySeeder extends Seeder
 
         [$ruleId, $priceHour] = $this->getPricingRule($startTime, $isWeekend);
 
-        // Hitung harga personal per-menit dengan segmen tarif
-        // (simplified: pakai tarif start_time saja untuk seeder)
         $pricePerMin = $priceHour / 60;
         $calculated  = (int) round($pricePerMin * $durMin);
         $billPrice   = max($calculated, 10000);
@@ -429,9 +443,8 @@ class ReportDummySeeder extends Seeder
             $date      = Carbon::now()->subDays($day)->startOfDay();
             $isWeekend = in_array($date->isoweekday(), [5, 6, 7]); // Jumat, Sabtu, Minggu
 
-            // Volume harian: lebih ramai di weekend & hari-hari tertentu
             $txBillingCount = $isWeekend ? rand(12, 20) : rand(7, 14);
-            $txFnbCount     = rand(2, 6); // FnB standalone walk-in
+            $txFnbCount     = rand(2, 6);
 
             // ── FnB Standalone ──────────────────────────────────────────
             for ($f = 0; $f < $txFnbCount; $f++) {
@@ -439,9 +452,7 @@ class ReportDummySeeder extends Seeder
             }
 
             // ── Billing Meja ─────────────────────────────────────────────
-            // Pilih meja acak tanpa duplikat dalam 1 "gelombang" waktu
-            // Simulasikan 2 gelombang: siang (11:00–17:00) dan malam (18:00–02:00)
-            $tablePool = range(1, 14); // Meja 1–14 yang aktif
+            $tablePool = range(1, 14);
             shuffle($tablePool);
 
             $sessionsPerDay = min($txBillingCount, count($tablePool));
@@ -449,42 +460,32 @@ class ReportDummySeeder extends Seeder
 
             for ($s = 0; $s < $sessionsPerDay; $s++) {
 
-                // Pilih meja: prioritas yang belum dipakai, tapi boleh repeat setelah satu sesi selesai
                 $available = array_diff($tablePool, $usedInWave);
                 if (empty($available)) {
-                    // Reset: gelombang baru (meja boleh dipakai lagi)
                     $usedInWave = [];
                     $available  = $tablePool;
                 }
 
-                // ✅ FIX: reindex sebelum array_rand
-                $available = array_values($available);
-                $tableId   = $available[array_rand($available)];
+                $available   = array_values($available);
+                $tableId     = $available[array_rand($available)];
                 $usedInWave[] = $tableId;
 
-                // ── Tentukan jam mulai ────────────────────────────────────
-                // Operasional 11:00–02:59, distribusi ke siang dan malam
-                $isSiangSession = rand(0, 10) <= 6; // 60% siang, 40% malam
+                $isSiangSession = rand(0, 10) <= 6;
                 if ($isSiangSession) {
                     $startHour = rand(11, 17);
                 } else {
-                    // Malam: 18:00–01:00
                     $startHour = rand(18, 25) % 24;
                 }
                 $startMin  = rand(0, 59);
                 $startSec  = rand(0, 59);
                 $startTime = $date->copy()->setHour($startHour)->setMinute($startMin)->setSecond($startSec);
 
-                // Jika jam > 24 (dini hari), shift ke hari berikutnya
                 if ($startHour >= 24) {
                     $startTime = $date->copy()->addDay()->setHour($startHour - 24)->setMinute($startMin)->setSecond($startSec);
                 }
 
-                // ── Tentukan tipe billing ─────────────────────────────────
-                // Weekday: 35% hourly, 35% package, 30% personal
-                // Weekend: 40% hourly, 10% package(skip→hourly), 50% personal
                 $billingRand = rand(1, 10);
-                $hasFnb      = rand(1, 10) <= 4; // 40% ada tambahan FnB
+                $hasFnb      = rand(1, 10) <= 4;
 
                 if ($isWeekend) {
                     if ($billingRand <= 4) {
@@ -496,7 +497,6 @@ class ReportDummySeeder extends Seeder
                     if ($billingRand <= 3) {
                         $this->seedHourly($startTime, $tableId, $isWeekend, $hasFnb);
                     } elseif ($billingRand <= 6) {
-                        // Package hanya tersedia jam 11:00–17:00 weekday
                         $ph = (int) $startTime->format('H');
                         if ($ph >= 11 && $ph < 17) {
                             $this->seedPackage($startTime, $tableId, $hasFnb);

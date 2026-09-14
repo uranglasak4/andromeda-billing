@@ -222,7 +222,7 @@
                                 </select>
                             @endif
 
-                            {{-- Input nama biasa (Tetap bawaanmu) --}}
+                            {{-- Input nama biasa --}}
                             <input type="text" name="customer_name" id="input-customer-name" class="form-control"
                                 placeholder="Nama Customer..." required>
                         </div>
@@ -273,7 +273,6 @@
                                             $startTime = Carbon::parse($package->active_from)->format('H:i');
                                             $endTime = Carbon::parse($package->active_to)->format('H:i');
 
-                                            // --- DI SINI PERUBAHANNYA: Mengubah 'both' menjadi 'Everyday' ---
                                             $rawDayType = strtolower($package->day_type);
                                             if ($rawDayType === 'both') {
                                                 $dayLabel = 'Everyday';
@@ -284,7 +283,7 @@
                                             // Teks keterangan untuk dropdown
                                             $labelNote = " ({$dayLabel} {$startTime}-{$endTime})";
 
-                                            // 2. Validasi Hari (Jika 'both' / 'Everyday', abaikan/loloskan validasi hari)
+                                            // 2. Validasi Hari
                                             if ($rawDayType === 'weekend' && !$isTodayWeekend) {
                                                 $isDisabled = true;
                                             } elseif ($rawDayType === 'weekday' && !$isTodayWeekday) {
@@ -297,10 +296,8 @@
 
                                             $isTimeValid = false;
                                             if ($pkgStart <= $pkgEnd) {
-                                                // Rentang normal (misal 11:00:00 s/d 15:00:00)
                                                 $isTimeValid = $currentTime >= $pkgStart && $currentTime <= $pkgEnd;
                                             } else {
-                                                // Rentang lewat tengah malam (misal 22:00:00 s/d 03:00:00)
                                                 $isTimeValid = $currentTime >= $pkgStart || $currentTime <= $pkgEnd;
                                             }
 
@@ -436,11 +433,11 @@
                     </div>
                     <div class="row g-2 mt-2">
                         <div class="col-6">
-                            <form id="form-unpaid-billing" action="{{ route('transactions.unpaid') }}" method="POST">
+                            <form id="form-unpaid-billing" action="{{ route('transactions.unpaid') }}" method="POST"
+                                onsubmit="return confirm('Pindahkan tagihan ke Pending & kosongkan meja?')">
                                 @csrf
                                 <input type="hidden" name="table_id" id="unpaid-table-id">
-                                <button type="submit" class="btn btn-outline-warning w-100 py-2 fw-bold"
-                                    onclick="return confirm('Pindahkan tagihan ke Pending & kosongkan meja?')">
+                                <button type="submit" class="btn btn-outline-warning w-100 py-2 fw-bold">
                                     ⏳ Tagihan Pending
                                 </button>
                             </form>
@@ -639,8 +636,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-success w-100 fw-bold py-2"
-                            onclick="return confirm('Proses pembayaran dan selesaikan billing?')">
+                        <button type="submit" class="btn btn-success w-100 fw-bold py-2">
                             ✅ LUNASI & SELESAIKAN BILLING
                         </button>
                     </div>
@@ -651,7 +647,6 @@
 
     <script>
         // Logic Realtime Timer
-        // Simpan status meja sebelumnya di memori untuk deteksi perubahan
         let previousStatuses = {};
 
         function updateTimers() {
@@ -670,20 +665,15 @@
                     const distance = endTime - now;
                     const minutesLeft = Math.floor(distance / 60000);
 
-                    // 1. LOGIKA TIMEOUT
                     if (distance <= 0) {
                         timer.innerHTML = "00:00:00";
                         cardElement.classList.remove('bg-playing', 'bg-nearly');
                         cardElement.classList.add('bg-timeout-blink');
                         if (statusLabel) statusLabel.innerText = 'TIMEOUT';
 
-                        // CEK APAKAH HARUS BUNYI?
                         const storageKey = 'done_' + tableNumber + '_' + startTimeStr;
                         const isAlreadyDone = localStorage.getItem(storageKey);
 
-                        // Bunyi HANYA JIKA:
-                        // - Belum pernah bunyi untuk sesi ini (isAlreadyDone kosong)
-                        // - DAN status sebelumnya adalah 'NEARLY' (artinya kita memang sedang nungguin dia habis)
                         if (!isAlreadyDone && previousStatuses[tableNumber] === 'NEARLY') {
                             const audio = document.getElementById('snd-timeout');
                             if (audio) {
@@ -698,15 +688,12 @@
                         return;
                     }
 
-                    // 2. LOGIKA NEARLY (< 20 Menit)
                     if (minutesLeft < nearlyThreshold) {
                         cardElement.classList.remove('bg-playing', 'bg-timeout-blink');
                         cardElement.classList.add('bg-nearly');
                         if (statusLabel) statusLabel.innerText = 'NEARLY';
                         previousStatuses[tableNumber] = 'NEARLY';
-                    }
-                    // 3. LOGIKA PLAYING
-                    else {
+                    } else {
                         cardElement.classList.remove('bg-nearly', 'bg-timeout-blink');
                         cardElement.classList.add('bg-playing');
                         if (statusLabel) statusLabel.innerText = 'PLAYING';
@@ -719,7 +706,6 @@
                     timer.innerHTML = String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0') + ":" + String(
                         s).padStart(2, '0');
                 } else {
-                    // Logika Personal
                     const start = new Date(startTimeStr).getTime();
                     const diff = now - start;
                     cardElement.classList.remove('bg-playing', 'bg-nearly', 'bg-timeout-blink');
@@ -734,18 +720,15 @@
                 }
             });
         }
-        // Bersihkan catatan lama setiap 1 jam agar browser tidak berat
-        if (Math.random() < 0.1) { // Berjalan jarang-jarang saja
+
+        if (Math.random() < 0.1) {
             localStorage.clear();
         }
 
-        // Jalankan timer setiap detik
-        // Tambahkan SEBELUM setInterval(updateTimers, 500):
         const nearlyThreshold = {{ \App\Models\Setting::where('key', 'nearly_warning_minutes')->value('value') ?? 20 }};
         setInterval(updateTimers, 500);
         updateTimers();
 
-        // Fungsi UI lainnya
         function toggleWaitingList() {
             const gridMeja = document.getElementById('grid-meja');
             const listSection = document.getElementById('list-antrean-section');
@@ -768,9 +751,6 @@
             new bootstrap.Modal(document.getElementById('modal-open-table')).show();
         }
 
-        // =========================================================================
-        // PENGATURAN MODAL OPTION MEJA & EDIT NAMA CUSTOMER (UPDATED COMPLETE)
-        // =========================================================================
         function showOptionModal(id, number) {
             window.currentSelectedTableId = id;
             document.getElementById('option-no-meja').innerText = number;
@@ -807,21 +787,16 @@
                         document.getElementById('option-customer-name-input').value = data.customer_name || 'GUEST';
                         window.currentActiveTransactionId = data.transaction_id;
 
-                        // =========================================================================
-                        // PERBAIKAN: HITUNG BIAYA BILLING MEJA (PERSONAL / HOURLY / PACKAGE)
-                        // =========================================================================
                         let billingPrice = parseInt(data.billing_price) || 0;
 
-                        // Jika billing_price dari backend 0/null, kalkulasi durasi berjalan secara real-time
                         if (billingPrice === 0 && data.start_time) {
                             const startTime = new Date(data.start_time).getTime();
                             const now = new Date().getTime();
-                            const diffMinutes = Math.max(Math.ceil((now - startTime) / 60000), 1); // minimal 1 menit
-                            const hourlyRate = parseInt(data.hourly_rate) || 29000; // default rate per jam
-                            const minCharge = parseInt(data.min_charge) || 10000; // minimum charge personal
+                            const diffMinutes = Math.max(Math.ceil((now - startTime) / 60000), 1);
+                            const hourlyRate = parseInt(data.hourly_rate) || 29000;
+                            const minCharge = parseInt(data.min_charge) || 10000;
 
                             if (data.type === 'personal' || data.type === 'open') {
-                                // Hitung per menit dari tarif jam
                                 let calculated = Math.ceil((diffMinutes / 60) * hourlyRate);
                                 billingPrice = Math.max(calculated, minCharge);
                             } else if (data.type === 'hourly' || data.type === 'manual') {
@@ -886,7 +861,6 @@
                             `;
                         }
 
-                        // Grand Total = Total FnB + Biaya Billing Meja (Personal/Hourly/Package)
                         let grandTotal = totalFnbPrice + billingPrice;
                         txtGrandTotal.innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
                     }
@@ -926,7 +900,6 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        // Menggunakan cara alternatif penulisan CSRF Token bawaan Laravel yang jauh lebih aman
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     body: JSON.stringify({
@@ -949,7 +922,6 @@
                             showConfirmButton: false
                         });
 
-                        // Supaya grid warna/nama meja di dashboard berubah secara real-time
                         if (typeof getTablesStatus === "function") {
                             getTablesStatus();
                         }
@@ -969,12 +941,8 @@
             new bootstrap.Modal(document.getElementById('modal-move-table')).show();
         }
 
-        // Variabel global untuk menyimpan Grand Total transaksi saat ini
         let currentGrandTotal = 0;
 
-        // =========================================================================
-        // ALUR PEMBAYARAN KASIR (POP-UP MODAL PEMBAYARAN)
-        // =========================================================================
         function stopBilling() {
             const tableId = window.currentSelectedTableId;
             if (!tableId) {
@@ -982,18 +950,15 @@
                 return;
             }
 
-            // Tentukan URL Action Form menuju BillingController::stopBilling
             const formPayment = document.getElementById('form-payment-billing');
             formPayment.action = `/admin/billing/stop/${tableId}`;
 
-            // Tutup Modal Option Meja terlebih dahulu
             const optionModalEl = document.getElementById('modal-option-table');
             if (optionModalEl) {
                 const optionModal = bootstrap.Modal.getInstance(optionModalEl);
                 if (optionModal) optionModal.hide();
             }
 
-            // Ambil data rincian tagihan secara presisi menggunakan URL Route Laravel yang pas
             fetch(`/admin/billing/active-detail/${tableId}`)
                 .then(res => {
                     if (!res.ok) throw new Error('Gagal mengambil data billing dari server.');
@@ -1005,7 +970,6 @@
                         return;
                     }
 
-                    // Hitung Biaya Billing & Grand Total
                     let billingPrice = parseInt(data.billing_price) || 0;
                     let totalFnb = parseInt(data.total_fnb) || 0;
                     let grandTotal = parseInt(data.grand_total) || (billingPrice + totalFnb);
@@ -1014,24 +978,20 @@
 
                     let rawTable = document.getElementById('option-no-meja').innerText;
 
-                    // Format agar selalu ada kata "Meja" di depannya (Menjadi "Meja 1")
                     let formatMeja = String(rawTable).toLowerCase().includes('meja') ?
                         rawTable :
                         `Meja ${rawTable}`;
 
-                    // Isikan data ke elemen-elemen Modal Pembayaran
                     document.getElementById('pay-no-meja').innerText = formatMeja;
                     document.getElementById('pay-billing-price').innerText =
                         `Rp ${billingPrice.toLocaleString('id-ID')}`;
                     document.getElementById('pay-fnb-price').innerText = `Rp ${totalFnb.toLocaleString('id-ID')}`;
                     document.getElementById('pay-grand-total').innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
 
-                    // Reset input Uang Diterima = Grand Total
                     const inputPay = document.getElementById('pay-amount-input');
                     inputPay.value = grandTotal;
                     calculateChangeAmount();
 
-                    // Munculkan Modal Pembayaran
                     new bootstrap.Modal(document.getElementById('modal-payment-table')).show();
                 })
                 .catch(err => {
@@ -1040,11 +1000,9 @@
                 });
         }
 
-        // Fungsi Hitung Kembalian Otomatis
         function calculateChangeAmount() {
             const payInput = parseFloat(document.getElementById('pay-amount-input').value) || 0;
 
-            // Gunakan currentUnpaidGrandTotal jika ada, kalau tidak ada pakai currentGrandTotal
             const grandTotal = (typeof currentUnpaidGrandTotal !== 'undefined' && currentUnpaidGrandTotal > 0) ?
                 currentUnpaidGrandTotal :
                 (typeof currentGrandTotal !== 'undefined' ? currentGrandTotal : 0);
@@ -1071,33 +1029,25 @@
             if (type === 'manual') {
                 const hours = parseFloat(document.getElementById('input-hours').value) || 0;
 
-                // 1. Ambil seluruh aturan harga dari database
                 const pricingRules = @json($pricingRules);
 
-                // 2. Ambil Waktu & Hari Kasir Aktif Saat Ini
                 const now = new Date();
                 const currentHour = now.getHours();
                 const currentMinute = now.getMinutes();
-                const dayIndex = now.getDay(); // 0 = Minggu, 1 = Senin, ..., 6 = Sabtu
+                const dayIndex = now.getDay();
 
-                // Konversi index hari JS (0-6) ke standar ISO Laravel (1=Senin, 7=Minggu)
                 const currentDayISO = dayIndex === 0 ? 7 : dayIndex;
 
-                // Hitung total menit berjalan dari jam 00:00 pagi
                 const totalCurrentMinutes = (currentHour * 60) + currentMinute;
 
-                // Tentukan harga fallback utama (Rp 29.000 jika benar-benar tidak ada yang cocok)
                 let pricePerHour = 29000;
 
-                // 3. Iterasi pencocokan aturan harga
                 for (let rule of pricingRules) {
                     if (!rule.active_days || !rule.start_time || !rule.end_time) continue;
 
-                    // Bersihkan spasi dan jadikan array hari aktif
                     const activeDays = rule.active_days.toString().replace(/\s/g, '').split(',');
 
                     if (activeDays.includes(String(currentDayISO))) {
-                        // Perbaikan: Pisahkan string waktu dan pastikan hanya mengambil Jam dan Menit (mengabaikan detik jika ada)
                         const startParts = rule.start_time.split(':');
                         const endParts = rule.end_time.split(':');
 
@@ -1109,15 +1059,12 @@
                         const startMinutes = (startH * 60) + startM;
                         const endMinutes = (endH * 60) + endM;
 
-                        // Logika Aturan Waktu Melewati Tengah Malam (Contoh: 18:00:00 s.d 03:00:00)
                         if (endMinutes < startMinutes) {
                             if (totalCurrentMinutes >= startMinutes || totalCurrentMinutes < endMinutes) {
                                 pricePerHour = parseFloat(rule.price_per_hour);
                                 break;
                             }
-                        }
-                        // Logika Aturan Waktu Normal di Hari yang Sama (Contoh: 08:00:00 s.d 17:00:00)
-                        else {
+                        } else {
                             if (totalCurrentMinutes >= startMinutes && totalCurrentMinutes <= endMinutes) {
                                 pricePerHour = parseFloat(rule.price_per_hour);
                                 break;
@@ -1126,7 +1073,6 @@
                     }
                 }
 
-                // 4. Kalkulasi total akhir harga
                 const totalPrice = hours * pricePerHour;
                 document.getElementById('display-harga').innerText = totalPrice.toLocaleString('id-ID');
             }
@@ -1139,7 +1085,6 @@
             const manualContainer = document.getElementById('manual-duration-container');
             const inputPackageId = document.getElementById('input-package-id');
 
-            // Reset default
             manualContainer.classList.add('d-none');
             if (inputPackageId) inputPackageId.value = '';
 
@@ -1153,7 +1098,6 @@
                 const price = selectedOption.getAttribute('data-price');
                 const pkgId = selectedOption.getAttribute('data-package-id');
 
-                // 🚀 Set package_id ke input hidden
                 if (inputPackageId) inputPackageId.value = pkgId;
 
                 document.getElementById('display-harga').innerText = parseInt(price).toLocaleString('id-ID');
@@ -1166,10 +1110,8 @@
             const type = selectedOption.getAttribute('data-type');
             const manualContainer = document.getElementById('rocket-manual-duration-container');
 
-            // Reset tampilan input jam manual
             manualContainer.classList.add('d-none');
 
-            // Ambil elemen display yang dibutuhkan
             const displayHarga = document.getElementById('rocket-display-harga');
             const summaryMeja = document.getElementById('rocket-summary-meja');
 
@@ -1179,7 +1121,7 @@
             } else if (type === 'personal') {
                 const minCharge = {{ $currentRule?->min_charge ?? 10000 }};
                 if (displayHarga) displayHarga.innerText = minCharge.toLocaleString('id-ID');
-                if (summaryMeja) summaryMeja.innerText = summaryMeja.innerText; // no-op to avoid undefined usage
+                if (summaryMeja) summaryMeja.innerText = summaryMeja.innerText;
             } else if (type === 'package') {
                 calculateRocketPrice();
             }
@@ -1195,14 +1137,12 @@
             const displayHarga = document.getElementById('rocket-display-harga');
             const summaryMeja = document.getElementById('rocket-summary-meja');
 
-            // Hitung jangkauan nomor meja untuk info kasir
             const startTable = parseInt(document.getElementById('rocket-start-table').value) || 1;
             const endTable = parseInt(document.getElementById('rocket-end-table').value) || 1;
 
             let totalMejaTerpilih = (endTable - startTable) + 1;
             if (totalMejaTerpilih <= 0) totalMejaTerpilih = 0;
 
-            // Default per-meja dan total
             let hargaPerMeja = 0;
             let totalHarga = 0;
 
@@ -1215,7 +1155,7 @@
                 const now = new Date();
                 const currentHour = now.getHours();
                 const currentMinute = now.getMinutes();
-                const dayIndex = now.getDay(); // 0 = Minggu, 1 = Senin, ..., 6 = Sabtu
+                const dayIndex = now.getDay();
                 const currentDayISO = dayIndex === 0 ? 7 : dayIndex;
                 const totalCurrentMinutes = (currentHour * 60) + currentMinute;
 
@@ -1246,14 +1186,11 @@
                 hargaPerMeja = hours * pricePerHour;
 
             } else if (type === 'personal') {
-                // Ambil min_charge dari server (nilai saat halaman dirender)
                 hargaPerMeja = {{ $currentRule?->min_charge ?? 10000 }};
             }
 
-            // Hitung total untuk semua meja yang dipilih
             totalHarga = hargaPerMeja * totalMejaTerpilih;
 
-            // Debug: log nilai penting ke console
             console.log('calculateRocketPrice', {
                 type,
                 startTable,
@@ -1263,24 +1200,19 @@
                 totalHarga
             });
 
-            // Tampilkan: per meja dan total di summary
             if (displayHarga) displayHarga.innerText = hargaPerMeja.toLocaleString('id-ID');
             if (summaryMeja) summaryMeja.innerText =
                 `*Akan mengaktifkan ${totalMejaTerpilih} meja sekaligus secara mandiri. Total: Rp ${totalHarga.toLocaleString('id-ID')}`;
         }
 
-
-
         window.addEventListener('load', function() {
             @if (session('success'))
                 const msg = "{{ session('success') }}".toLowerCase();
 
-                // Meja dimulai -> billing.wav[cite: 23]
                 if (msg.includes('dimulai')) {
                     const snd = document.getElementById('snd-billing');
                     if (snd) snd.play().catch(e => console.log("Audio blocked"));
                 }
-                // Meja selesai -> finished.wav[cite: 23]
                 else if (msg.includes('selesai') || msg.includes('pending') || msg.includes('unpaid')) {
                     const snd = document.getElementById('snd-finished');
                     if (snd) snd.play().catch(e => console.log("Audio blocked"));
@@ -1290,20 +1222,16 @@
 
         window.addEventListener('load', function() {
             @if (session('print_transaction_id'))
-                // Otomatis buka tab struk baru
                 window.open("{{ route('admin.receipt', session('print_transaction_id')) }}", "_blank");
             @endif
         });
 
         function showRocketModal() {
-            // Memastikan modal Bootstrap terpicu dengan aman
             const rocketModalEl = document.getElementById('modal-rocket-billing');
             if (rocketModalEl) {
                 const modal = new bootstrap.Modal(rocketModalEl);
                 modal.show();
 
-                // Pastikan tampilan harga ter-update segera saat modal dibuka
-                // (tidak perlu admin mengubah input meja dulu)
                 setTimeout(() => {
                     try {
                         handleRocketBillingSelection();
@@ -1321,20 +1249,17 @@
         let currentUnpaidGrandTotal = 0;
 
         function showPayUnpaidModal(id, tableName, billPrice, fnbPrice, grandTotal) {
-            // 1. Set Action Form ke Endpoint Pay Unpaid
             const formPayment = document.getElementById('form-payment-billing');
             if (formPayment) {
                 formPayment.action = `/admin/transactions/${id}/pay`;
             }
 
-            // Convert angka secara aman
             let bPrice = parseFloat(billPrice) || 0;
             let fPrice = parseFloat(fnbPrice) || 0;
             let gTotal = parseFloat(grandTotal) || (bPrice + fPrice);
 
             currentGrandTotal = gTotal;
 
-            // 2. Set Nilai Tampilan di Modal Pembayaran
             const noMejaEl = document.getElementById('pay-no-meja');
             if (noMejaEl) {
                 noMejaEl.innerText = tableName.toLowerCase().startsWith('meja') ? tableName : `Meja ${tableName}`;
@@ -1344,7 +1269,6 @@
             document.getElementById('pay-fnb-price').innerText = `Rp ${fPrice.toLocaleString('id-ID')}`;
             document.getElementById('pay-grand-total').innerText = `Rp ${gTotal.toLocaleString('id-ID')}`;
 
-            // 3. Reset Input Uang Diterima & Hitung Kembalian
             const payInput = document.getElementById('pay-amount-input');
             if (payInput) {
                 payInput.value = gTotal;
@@ -1353,7 +1277,6 @@
             handlePaymentMethodChange();
             calculateChangeAmount();
 
-            // 4. Tampilkan Modal Payment Table
             const modalEl = document.getElementById('modal-payment-table');
             if (modalEl) {
                 new bootstrap.Modal(modalEl).show();
@@ -1363,30 +1286,24 @@
         function handlePaymentMethodChange() {
             const methodSelect = document.getElementById('payment-method-select');
             const payInput = document.getElementById('pay-amount-input');
-            const changeBox = document.getElementById('change-box-container'); // Beri ID ini pada container kotak kembalian
+            const changeBox = document.getElementById('change-box-container');
 
             if (!methodSelect || !payInput) return;
 
             const isCash = methodSelect.value === 'cash';
 
             if (!isCash) {
-                // Mode Non-Cash (QRIS/Transfer)
                 payInput.value = currentGrandTotal;
                 payInput.readOnly = true;
-
-                // Beri warna latar abu-abu terang dan hilangkan kursor teks
                 payInput.style.backgroundColor = '#e9ecef';
                 payInput.style.cursor = 'not-allowed';
 
-                // Opsional: Sembunyikan kotak kembalian jika bukan tunai
                 if (changeBox) changeBox.style.display = 'none';
             } else {
-                // Mode Cash/Tunai
                 payInput.readOnly = false;
                 payInput.style.backgroundColor = '#ffffff';
                 payInput.style.cursor = 'text';
 
-                // Tampilkan kembali kotak kembalian
                 if (changeBox) changeBox.style.display = 'block';
             }
 
@@ -1414,16 +1331,12 @@
         document.getElementById('form-payment-billing').onsubmit = function(e) {
             const payMethod = document.getElementById('payment-method-select').value;
 
-            // Hanya cek nominal jika metode pembayaran adalah Cash
             if (payMethod === 'cash') {
-                // Ambil nilai nominal uang yang diinput kasir
                 const payAmount = parseFloat(document.getElementById('pay-amount-input').value) || 0;
-
-                // Ambil grand total tagihan (pastikan variabel global currentGrandTotal terisi angka bersih)
                 const grandTotal = parseFloat(currentGrandTotal) || 0;
 
                 if (payAmount < grandTotal) {
-                    e.preventDefault(); // Batalkan proses kirim form
+                    e.preventDefault();
                     alert('Uang customer kurang!');
                     document.getElementById('pay-amount-input').focus();
                     return false;
