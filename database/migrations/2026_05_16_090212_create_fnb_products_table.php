@@ -12,13 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('fnb_products', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('fnb_category_id')->constrained('fnb_categories')->onDelete('cascade');
-    $table->string('name'); // Nasi Goreng
-    $table->integer('price'); // Harga Jual
-    $table->integer('stock')->default(0); // Stok barang
-    $table->timestamps();
-});
+            $table->id();
+            $table->foreignId('fnb_category_id')->constrained('fnb_categories')->onDelete('cascade');
+            $table->string('name'); // Nasi Goreng
+            $table->integer('price'); // Harga Jual
+            $table->integer('hpp')->default(0); // Nama 'hpp' sesuai istilah manajer
+            $table->integer('stock')->default(0); // Stok barang
+            $table->integer('min_stock')->default(5);
+            $table->timestamps();
+        });
     }
 
     /**
