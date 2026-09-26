@@ -134,14 +134,15 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold text-dark">Nama Anda / Nama Tim</label>
                             <input type="text" class="form-control" name="nama_pelanggan"
-                                placeholder="CONTOH: Budi / Fajar CS" required autocomplete="off">
+                                placeholder="CONTOH: Budi / Fajar CS" maxlength="18" required autocomplete="off">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold text-dark">Nomor WhatsApp Aktif</label>
                             <div class="input-group input-group-flat">
                                 <span class="input-group-text bg-light text-muted fw-bold">+62</span>
-                                <input type="number" class="form-control" name="nomor_wa" placeholder="81234567xxx"
-                                    required autocomplete="off">
+                                <input type="tel" class="form-control" name="nomor_wa" placeholder="81234567xxx"
+                                    maxlength="12" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required
+                                    autocomplete="off">
                             </div>
                             <small class="form-hint text-muted mt-1 fw-bold">
                                 *Sistem otomatis mengirimkan nomor urut & kode OTP verifikasi langsung ke nomor WhatsApp di

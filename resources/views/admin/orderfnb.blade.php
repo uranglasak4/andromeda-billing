@@ -103,7 +103,7 @@
 
                             <div id="box-input-name" class="d-none">
                                 <div class="input-group">
-                                    <input type="text" id="inp_customer_name" list="waitinglist_options"
+                                    <input type="text" id="inp_customer_name" list="waitinglist_options" maxlength="18"
                                         class="form-control form-control-lg fw-bold"
                                         placeholder="Nama Pembeli (Waiting List / Walk-In)" autocomplete="off">
                                     <datalist id="waitinglist_options">

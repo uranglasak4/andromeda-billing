@@ -15,7 +15,7 @@ return new class extends Migration
     if (!Schema::hasTable('fnb_categories')) {
         Schema::create('fnb_categories', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name', 50);
             $table->timestamps();
         });
     }
@@ -24,7 +24,7 @@ return new class extends Migration
         Schema::create('fnb_products', function (Blueprint $table) {
             $table->id();
             $table->foreignId('fnb_category_id')->constrained('fnb_categories')->onDelete('cascade');
-            $table->string('name');
+            $table->string('name', 50);
             $table->integer('price');
             $table->integer('stock')->default(0);
             $table->timestamps();

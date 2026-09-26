@@ -219,7 +219,7 @@
                     <div class="mb-3">
                         <label class="form-label">Nama Paket</label>
                         <input type="text" name="name" class="form-control"
-                            placeholder="Contoh: Paket 2 Jam + Minum" required>
+                            placeholder="Contoh: Paket 2 Jam + Minum" maxlength="50" required>
                     </div>
                     <div class="row">
                         <div class="col-6">
@@ -267,7 +267,7 @@
                             <div class="mb-3">
                                 <label class="form-label">Nilai Durasi</label>
                                 <input type="text" name="duration_value" class="form-control"
-                                    placeholder="Misal: 120" required>
+                                    placeholder="Misal: 120" maxlength="10" required>
                                 <small class="text-muted">Isi <b>120</b> untuk durasi main selama 2 jam.</small>
                             </div>
                         </div>
@@ -319,7 +319,7 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Nama Paket</label>
-                        <input type="text" name="name" id="edit-pkg-name" class="form-control" required>
+                        <input type="text" name="name" id="edit-pkg-name" class="form-control" maxlength="50" required>
                     </div>
                     <div class="row">
                         <div class="col-6">
@@ -368,7 +368,7 @@
                             <div class="mb-3">
                                 <label class="form-label">Nilai Durasi</label>
                                 <input type="text" name="duration_value" id="edit-pkg-durval" class="form-control"
-                                    required>
+                                     maxlength="10" required>
                             </div>
                         </div>
                     </div>

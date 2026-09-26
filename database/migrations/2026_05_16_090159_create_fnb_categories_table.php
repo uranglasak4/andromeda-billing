@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('fnb_categories', function (Blueprint $table) {
     $table->id();
-    $table->string('name'); // Makanan, Minuman, Rokok
+    $table->string('name', 50); // Makanan, Minuman, Rokok
     $table->timestamps();
 });
     }

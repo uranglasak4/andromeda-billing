@@ -157,7 +157,7 @@ class MasterController extends Controller
 
     public function storeCategory(Request $request)
     {
-        $request->validate(['name' => 'required|string|max:255']);
+        $request->validate(['name' => 'required|string|max:50']);
         FnbCategory::create(['name' => $request->name]);
         return back()->with('success', 'Kategori baru berhasil ditambahkan!');
     }
@@ -172,7 +172,7 @@ class MasterController extends Controller
     {
         $request->validate([
             'fnb_category_id' => 'required|exists:fnb_categories,id',
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:50',
             'price' => 'required|numeric',
             'hpp' => 'required|numeric',
             'stock' => 'required|integer',
@@ -198,17 +198,24 @@ class MasterController extends Controller
 
     public function packageStore(Request $request)
     {
+        // Validasi input utama & array FnB
         $request->validate([
-            'name' => 'required|string',
-            'price' => 'required|numeric',
-            'day_type' => 'required',
+            'name' => 'required|string|max:50',
+            'price' => 'required|numeric|min:0',
+            'day_type' => 'required|in:weekday,weekend,both',
             'active_from' => 'required',
             'active_to' => 'required',
-            'duration_type' => 'required',
-            'duration_value' => 'required',
+            'duration_type' => 'required|in:minutes,fixed_end_time',
+            'duration_value' => 'required|string|max:10',
+
+            // Validasi opsional untuk array FnB
+            'fnb_products' => 'nullable|array',
+            'fnb_products.*' => 'nullable|integer|exists:fnb_products,id',
+            'fnb_quantities' => 'nullable|array',
+            'fnb_quantities.*' => 'nullable|integer|min:1',
         ]);
 
-        // 1. Simpan Data Paket (menggunakan active_from dan active_to sesuai Form Blade)
+        // 1. Simpan Data Paket
         $package = Package::create([
             'name' => $request->name,
             'price' => $request->price,
@@ -219,15 +226,19 @@ class MasterController extends Controller
             'duration_value' => $request->duration_value,
         ]);
 
-        // 2. Simpan Produk FnB Include (Jika Ada)
-        if ($request->has('fnb_products')) {
+        // 2. Format Data FnB
+        $syncData = [];
+        if ($request->has('fnb_products') && is_array($request->fnb_products)) {
             foreach ($request->fnb_products as $index => $fnbId) {
                 if (!empty($fnbId)) {
                     $stock = $request->fnb_quantities[$index] ?? 1;
-                    $package->fnbProducts()->attach($fnbId, ['stock' => $stock]);
+                    $syncData[$fnbId] = ['stock' => $stock];
                 }
             }
         }
+
+        // Gunakan sync() juga di store agar konsisten
+        $package->fnbProducts()->sync($syncData);
 
         return back()->with('success', 'Paket billing berhasil dibuat!');
     }
@@ -235,6 +246,22 @@ class MasterController extends Controller
     public function packageUpdate(Request $request, $id)
     {
         $package = Package::findOrFail($id);
+
+        // Wajib sertakan validasi di method update!
+        $request->validate([
+            'name' => 'required|string|max:50',
+            'price' => 'required|numeric|min:0',
+            'day_type' => 'required|in:weekday,weekend,both',
+            'active_from' => 'required',
+            'active_to' => 'required',
+            'duration_type' => 'required|in:minutes,fixed_end_time',
+            'duration_value' => 'required|string|max:10',
+
+            'fnb_products' => 'nullable|array',
+            'fnb_products.*' => 'nullable|integer|exists:fnb_products,id',
+            'fnb_quantities' => 'nullable|array',
+            'fnb_quantities.*' => 'nullable|integer|min:1',
+        ]);
 
         // 1. Update Informasi Paket
         $package->update([
@@ -247,9 +274,9 @@ class MasterController extends Controller
             'duration_value' => $request->duration_value,
         ]);
 
-        // 2. Sync / Perbarui Produk FnB Include
+        // 2. Sync Produk FnB Include
         $syncData = [];
-        if ($request->has('fnb_products')) {
+        if ($request->has('fnb_products') && is_array($request->fnb_products)) {
             foreach ($request->fnb_products as $index => $fnbId) {
                 if (!empty($fnbId)) {
                     $stock = $request->fnb_quantities[$index] ?? 1;
@@ -258,7 +285,6 @@ class MasterController extends Controller
             }
         }
 
-        // sync() akan otomatis menambah, merubah stock, atau menghapus FnB yang dilepas
         $package->fnbProducts()->sync($syncData);
 
         return back()->with('success', 'Paket billing berhasil diperbarui!');

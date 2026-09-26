@@ -27,9 +27,9 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users,username',
-            'password' => 'required|string|min:4',
+            'name' => 'required|string|max:35',
+            'username' => 'required|string|max:20|unique:users,username',
+            'password' => 'required|string|min:4|max:30',
             'role' => 'required|in:master,admin',
         ]);
 
@@ -66,10 +66,10 @@ class UserController extends Controller
         }
 
         $request->validate([
-            'name' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users,username,' . $id,
+            'name' => 'required|string|max:35',
+            'username' => 'required|string|max:20|unique:users,username,' . $id,
             'role' => 'required|in:master,admin',
-            'password' => 'nullable|string|min:4', // Password boleh kosong jika tidak ingin diubah
+            'password' => 'nullable|string|min:4|max:30', // Password boleh kosong jika tidak ingin diubah
             'is_active' => 'required|boolean',
         ]);
 

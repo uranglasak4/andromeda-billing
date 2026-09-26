@@ -155,7 +155,7 @@ class WaitingListController extends Controller
             // -------------------------------------------------------
             $request->validate([
                 'nama_pelanggan' => 'required|string|max:18',
-                'nomor_wa' => 'nullable|numeric',
+                'nomor_wa' => 'nullable|string|max:12',
             ]);
 
             WaitingList::create([
@@ -185,12 +185,12 @@ class WaitingListController extends Controller
 
             $request->validate([
                 'nama_pelanggan' => 'required|string|max:25',
-                'nomor_wa' => 'required|numeric',
+                'nomor_wa' => 'required|string|min:9|max:12',
             ]);
 
             $nomor = preg_replace('/\D/', '', $request->nomor_wa);
 
-            if (strlen($nomor) < 9 || strlen($nomor) > 13) {
+            if (strlen($nomor) < 9 || strlen($nomor) > 12) {
                 return redirect()->back()->with('invalid_wa', 'Nomor WhatsApp tidak valid! Masukkan nomor yang benar (tanpa +62).');
             }
 

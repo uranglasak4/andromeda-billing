@@ -125,17 +125,17 @@
                         <div class="mb-3">
                             <label class="form-label required">Nama Lengkap</label>
                             <input type="text" class="form-control" name="name" required
-                                placeholder="Masukkan nama lengkap staff...">
+                                placeholder="Masukkan nama lengkap staff..." maxlength="35">
                         </div>
                         <div class="mb-3">
                             <label class="form-label required">Username (Untuk Login)</label>
                             <input type="text" class="form-control" name="username" required
-                                placeholder="Contoh: kasir_andromeda">
+                                placeholder="Contoh: kasir_andromeda" maxlength="20">
                         </div>
                         <div class="mb-3">
                             <label class="form-label required">Password Awal</label>
                             <input type="password" class="form-control" name="password" required
-                                placeholder="Minimal 4 karakter...">
+                                placeholder="Minimal 4 karakter..." maxlength="30">
                         </div>
                         <div class="mb-3">
                             <label class="form-label required">Hak Akses (Role)</label>
@@ -169,16 +169,16 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label required">Nama Lengkap</label>
-                            <input type="text" class="form-control" name="name" id="edit-name" required>
+                            <input type="text" class="form-control" name="name" id="edit-name" required maxlength="35">
                         </div>
                         <div class="mb-3">
                             <label class="form-label required">Username</label>
-                            <input type="text" class="form-control" name="username" id="edit-username" required>
+                            <input type="text" class="form-control" name="username" id="edit-username" required maxlength="20">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Ganti Password (Kosongkan jika tidak diubah)</label>
                             <input type="password" class="form-control" name="password"
-                                placeholder="Isi password baru jika ingin diganti...">
+                                placeholder="Isi password baru jika ingin diganti..." maxlength="30">
                         </div>
                         <div class="mb-3">
                             <label class="form-label required">Hak Akses (Role)</label>

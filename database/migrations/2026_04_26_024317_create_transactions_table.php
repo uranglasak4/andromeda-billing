@@ -20,7 +20,7 @@ return new class extends Migration
 
             // Detail Meja & Pelanggan
             $table->foreignId('pool_table_id')->nullable()->constrained('pool_tables')->onDelete('cascade');
-            $table->string('customer_name')->nullable();
+            $table->string('customer_name', 18)->nullable();
 
             // Tipe Billing & Pricing
             $table->enum('billing_type', ['hourly', 'package', 'personal']);
@@ -33,12 +33,12 @@ return new class extends Migration
             $table->integer('duration')->nullable();   // Durasi dalam menit
 
             // Detail Pembayaran & Harga
-            $table->integer('bill_price')->nullable();
-            $table->integer('fnb_price')->default(0);
-            $table->integer('grand_total')->default(0);
+            $table->bigInteger('bill_price')->nullable();
+            $table->bigInteger('fnb_price')->default(0);
+            $table->bigInteger('grand_total')->default(0);
             $table->enum('payment_method', ['cash', 'qris', 'transfer'])->default('cash');
-            $table->integer('pay_amount')->default(0);
-            $table->integer('change_amount')->default(0);
+            $table->bigInteger('pay_amount')->default(0);
+            $table->bigInteger('change_amount')->default(0);
 
             // Status & Timestamps
             $table->enum('status', ['running', 'unpaid', 'finished', 'cancelled'])->default('running');

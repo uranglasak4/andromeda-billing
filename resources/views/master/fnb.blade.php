@@ -158,7 +158,7 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label required">Nama Kategori</label>
-                            <input type="text" class="form-control" name="name" required
+                            <input type="text" class="form-control" name="name" maxlength="50" required
                                 placeholder="Contoh: Snack, Coffee Base, Makanan">
                         </div>
                     </div>
@@ -183,7 +183,7 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label required">Nama Produk</label>
-                            <input type="text" class="form-control" name="name" required
+                            <input type="text" class="form-control" name="name" maxlength="50" required
                                 placeholder="Masukkan nama produk/menu...">
                         </div>
                         <div class="row">
@@ -250,7 +250,7 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label required">Nama Produk</label>
-                            <input type="text" class="form-control" name="name" id="edit-name" required>
+                            <input type="text" class="form-control" name="name" id="edit-name" maxlength="50" required>
                         </div>
                         <div class="row">
                             <div class="col-lg-6">

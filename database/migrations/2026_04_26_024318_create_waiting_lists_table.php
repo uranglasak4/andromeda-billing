@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('waiting_lists', function (Blueprint $table) {
             $table->id();
-            $table->string('customer_name');
-            $table->string('phone_number')->nullable();
+            $table->string('customer_name', 18);
+            $table->string('phone_number', 14)->nullable();
             $table->string('otp', 4)->nullable();
 
             // Kolom Tipe Antrean

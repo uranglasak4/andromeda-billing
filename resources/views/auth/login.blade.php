@@ -15,7 +15,7 @@
             <div class="mb-3">
                 <label class="form-label">Username</label>
                 <input type="text" name="username" class="form-control" placeholder="Masukkan username"
-                    value="{{ old('username') }}" required autofocus>
+                    value="{{ old('username') }}" maxlength="20" required autofocus>
             </div>
             <div class="mb-2">
                 <label class="form-label">
@@ -23,7 +23,7 @@
                 </label>
                 <div class="input-group input-group-flat">
                     <input type="password" name="password" class="form-control" placeholder="Masukkan password"
-                        autocomplete="off" required>
+                        autocomplete="off" maxlength="30" required>
                 </div>
             </div>
             <div class="form-footer">

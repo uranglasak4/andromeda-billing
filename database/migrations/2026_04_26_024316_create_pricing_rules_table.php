@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('pricing_rules', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name', 50);
             $table->enum('day_type', ['weekday', 'weekend']);
-            $table->string('active_days')->nullable(); // Taruh di sini tanpa ->after()
+            $table->string('active_days', 15)->nullable(); // Taruh di sini tanpa ->after()
             $table->time('start_time');
             $table->time('end_time');
             $table->integer('price_per_hour');

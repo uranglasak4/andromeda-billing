@@ -260,7 +260,7 @@ class BillingController extends Controller
         $request->validate([
             'start_table' => 'required|integer',
             'end_table' => 'required|integer',
-            'customer_name' => 'required|string|max:30',
+            'customer_name' => 'required|string|max:18',
             'duration' => 'required'
         ]);
 
@@ -427,7 +427,7 @@ class BillingController extends Controller
     {
         $request->validate([
             'transaction_id' => 'required|exists:transactions,id',
-            'customer_name' => 'required|string|max:50'
+            'customer_name' => 'required|string|max:18'
         ]);
 
         try {

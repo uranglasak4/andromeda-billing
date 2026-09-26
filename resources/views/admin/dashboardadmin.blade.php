@@ -224,7 +224,7 @@
 
                             {{-- Input nama biasa --}}
                             <input type="text" name="customer_name" id="input-customer-name" class="form-control"
-                                placeholder="Nama Customer..." required>
+                                placeholder="Nama Customer..." maxlength="18" required>
                         </div>
                         @php
                             use Carbon\Carbon;
@@ -528,7 +528,7 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">Nama Utama Group Customer</label>
                             <input type="text" name="customer_name" class="form-control" placeholder="Nama..."
-                                required>
+                                maxlength="18" required>
                         </div>
 
                         <div class="mb-3">

@@ -51,7 +51,7 @@
                                 <div class="col-md-5">
                                     <label class="form-label fw-bold text-dark">Nama Pelanggan / Tim</label>
                                     <input type="text" name="nama_pelanggan"
-                                        class="form-control form-control-lg text-uppercase fw-bold"
+                                        class="form-control form-control-lg text-uppercase fw-bold" maxlength="18"
                                         placeholder="CONTOH: BUDI / ALEX CS" {{ !$canRegister ? 'disabled' : '' }} required
                                         autocomplete="off">
                                 </div>
@@ -59,8 +59,8 @@
                                     <label class="form-label fw-bold text-dark">Nomor WhatsApp (Opsional)</label>
                                     <div class="input-group input-group-lg">
                                         <span class="input-group-text bg-white fw-bold text-muted">+62</span>
-                                        <input type="number" name="nomor_wa" class="form-control form-control-lg fw-bold"
-                                            placeholder="81234567xxx" {{ !$canRegister ? 'disabled' : '' }}
+                                        <input type="tel" class="form-control" name="nomor_wa" placeholder="81234567xxx"
+                                            maxlength="12" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required
                                             autocomplete="off">
                                     </div>
                                 </div>
