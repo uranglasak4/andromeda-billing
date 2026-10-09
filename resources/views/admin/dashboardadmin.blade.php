@@ -542,9 +542,47 @@
                                 </optgroup>
                                 <optgroup label="Paket Promo Master">
                                     @foreach ($packages as $package)
+                                        @php
+                                            $isDisabled = false;
+
+                                            // 1. Ambil jam dari database
+                                            $startTime = \Carbon\Carbon::parse($package->active_from)->format('H:i');
+                                            $endTime = \Carbon\Carbon::parse($package->active_to)->format('H:i');
+
+                                            $rawDayType = strtolower($package->day_type);
+                                            $dayLabel =
+                                                $rawDayType === 'both' ? 'Everyday' : ucfirst($package->day_type);
+
+                                            $labelNote = " ({$dayLabel} {$startTime}-{$endTime})";
+
+                                            // 2. Validasi Hari
+                                            if ($rawDayType === 'weekend' && !$isTodayWeekend) {
+                                                $isDisabled = true;
+                                            } elseif ($rawDayType === 'weekday' && !$isTodayWeekday) {
+                                                $isDisabled = true;
+                                            }
+
+                                            // 3. Validasi Jam Aktif
+                                            $pkgStart = \Carbon\Carbon::parse($package->active_from)->format('H:i:s');
+                                            $pkgEnd = \Carbon\Carbon::parse($package->active_to)->format('H:i:s');
+
+                                            $isTimeValid = false;
+                                            if ($pkgStart <= $pkgEnd) {
+                                                $isTimeValid = $currentTime >= $pkgStart && $currentTime <= $pkgEnd;
+                                            } else {
+                                                $isTimeValid = $currentTime >= $pkgStart || $currentTime <= $pkgEnd;
+                                            }
+
+                                            if (!$isTimeValid) {
+                                                $isDisabled = true;
+                                            }
+                                        @endphp
+
                                         <option value="{{ $package->duration_value }}" data-type="package"
-                                            data-price="{{ $package->price }}">
-                                            {{ $package->name }} (Rp {{ number_format($package->price, 0, ',', '.') }})
+                                            data-price="{{ $package->price }}" data-package-id="{{ $package->id }}"
+                                            {{ $isDisabled ? 'disabled' : '' }}>
+                                            {{ $package->name }} (Rp
+                                            {{ number_format($package->price, 0, ',', '.') }}){{ $labelNote }}
                                         </option>
                                     @endforeach
                                 </optgroup>
@@ -1212,8 +1250,7 @@
                 if (msg.includes('dimulai')) {
                     const snd = document.getElementById('snd-billing');
                     if (snd) snd.play().catch(e => console.log("Audio blocked"));
-                }
-                else if (msg.includes('selesai') || msg.includes('pending') || msg.includes('unpaid')) {
+                } else if (msg.includes('selesai') || msg.includes('pending') || msg.includes('unpaid')) {
                     const snd = document.getElementById('snd-finished');
                     if (snd) snd.play().catch(e => console.log("Audio blocked"));
                 }

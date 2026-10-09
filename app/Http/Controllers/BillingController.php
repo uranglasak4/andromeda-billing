@@ -287,6 +287,57 @@ class BillingController extends Controller
                 $matchedPackage = \App\Models\Package::where('duration_value', $duration)->first();
                 $packageId = $matchedPackage ? $matchedPackage->id : null;
             }
+
+            // VALIDASI PROTEKSI HARI & JAM PAKET (Sama seperti method openTable)
+            if ($packageId) {
+                $package = \App\Models\Package::find($packageId);
+
+                if ($package) {
+                    $now = \Carbon\Carbon::now();
+                    $currentTime = $now->format('H:i:s');
+                    $todayISO = (string) $now->dayOfWeekIso;
+
+                    $weekdayRule = \App\Models\PricingRule::where('day_type', 'weekday')->first();
+                    $weekendRule = \App\Models\PricingRule::where('day_type', 'weekend')->first();
+
+                    $weekdayDays = $weekdayRule && $weekdayRule->active_days
+                        ? explode(',', $weekdayRule->active_days)
+                        : ['1', '2', '3', '4'];
+
+                    $weekendDays = $weekendRule && $weekendRule->active_days
+                        ? explode(',', $weekendRule->active_days)
+                        : ['5', '6', '7'];
+
+                    $isTodayWeekday = in_array($todayISO, $weekdayDays);
+                    $isTodayWeekend = in_array($todayISO, $weekendDays);
+
+                    $pkgDayType = strtolower($package->day_type);
+
+                    if ($pkgDayType === 'weekend' && !$isTodayWeekend) {
+                        return back()->with('error', 'Paket promo ini hanya berlaku pada hari Weekend.');
+                    }
+
+                    if ($pkgDayType === 'weekday' && !$isTodayWeekday) {
+                        return back()->with('error', 'Paket promo ini hanya berlaku pada hari Weekday.');
+                    }
+
+                    if ($package->active_from && $package->active_to) {
+                        $pkgStart = \Carbon\Carbon::parse($package->active_from)->format('H:i:s');
+                        $pkgEnd = \Carbon\Carbon::parse($package->active_to)->format('H:i:s');
+
+                        $isTimeValid = false;
+                        if ($pkgStart <= $pkgEnd) {
+                            $isTimeValid = ($currentTime >= $pkgStart && $currentTime <= $pkgEnd);
+                        } else {
+                            $isTimeValid = ($currentTime >= $pkgStart || $currentTime <= $pkgEnd);
+                        }
+
+                        if (!$isTimeValid) {
+                            return back()->with('error', 'Paket promo ini sedang tidak aktif pada jam sekarang.');
+                        }
+                    }
+                }
+            }
         }
 
         $tables = PoolTable::whereBetween('table_number', [$request->start_table, $request->end_table])
