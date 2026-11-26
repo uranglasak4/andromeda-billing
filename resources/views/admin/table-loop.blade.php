@@ -47,7 +47,7 @@
                         <td class="text-uppercase text-truncate" style="max-width: 180px;">{{ $list->customer_name }}
                         </td>
                         <td><span
-                                class="text-monospace text-secondary">{{ $list->phone_number ? '+62' . $list->phone_number : '-' }}</span>
+                                class="text-monospace text-secondary">{{ $list->phone_number ? '+' . $list->phone_number : '-' }}</span>
                         </td>
                         <td>
                             @if ($list->tipe === 'onsite')

@@ -9,11 +9,15 @@
   <body class="d-flex flex-column">
     <div class="page page-center">
       <div class="container container-tight py-4">
-        <div class="text-center mb-4">
-            <h1 class="navbar-brand navbar-brand-autodark">*ANDROMEDA BILLIARD.png</h1>
-        </div>
 
-        <div class="card card-md">
+        <div class="card card-md shadow-sm overflow-hidden">
+          <!-- Header Gelap untuk Logo Putih -->
+          <div class="text-center py-4 px-3" style="background: radial-gradient(circle at center, #1b2234 0%, #0b0e14 100%);">
+            <img src="{{ asset('images/andromeda-logo.png') }}"
+                 alt="Andromeda Billiard & Cafe"
+                 style="max-width: 230px; height: auto; mix-blend-mode: screen;">
+          </div>
+
           <div class="card-body">
             <h2 class="h2 text-center mb-4">Login Akun</h2>
 
@@ -21,6 +25,7 @@
 
           </div>
         </div>
+
       </div>
     </div>
     <script src="{{ asset('dist/js/tabler.min.js') }}" defer></script>

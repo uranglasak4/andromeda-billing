@@ -62,7 +62,7 @@ class DatabaseSeeder extends Seeder
 
         // --- 2. SEED POOL TABLES (16 Meja Sekaligus) ---
         // Ini bagian yang akan menampilkan 16 meja di dashboard admin kamu
-        for ($i = 1; $i <= 16; $i++) {
+        for ($i = 1; $i <= 14; $i++) {
             PoolTable::updateOrCreate([
                 'table_number' => $i,
                 'relay_channel' => $i, // Untuk keperluan IoT/Relay nanti
