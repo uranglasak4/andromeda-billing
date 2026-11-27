@@ -58,7 +58,7 @@
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold text-dark">Nomor WhatsApp (Opsional)</label>
                                     <div class="input-group input-group-lg">
-                                        <span class="input-group-text bg-white fw-bold text-muted">+</span>
+                                        <span class="input-group-text bg-white fw-bold text-muted">+62</span>
                                         <input type="tel" class="form-control" name="nomor_wa" placeholder="81234567xxx"
                                             maxlength="12" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required
                                             autocomplete="off">
